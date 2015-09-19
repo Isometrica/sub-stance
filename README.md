@@ -6,49 +6,63 @@ An angular.js service that creates and maintains Meteor.js subscriptions across 
 
 - We have a complicated angular-meteor app, composed of many modules requiring a variety of meteor subscriptions.
 - We don't have a consistent way to manage these subscriptions; we've found ourselves using a variety of the following approaches:
-  - __In states__
-    - Example:
-    ```Javascript
-    ...
-    .state('module', {
-      url: '/module/:moduleId',
-      parent: 'organisation',
-      abstract: true,
-      template: '<ui-view/>',
-      resolve: {
-        moduleSub: function($meteor) {
-          return $meteor.subscribe('modules');
-        },
-        ... Other resolves
-      },
-      onExit: function(moduleSub) {
-        moduleSub.stop();
-      }
-    });
-    ```
-    - If any of the other dependencies are not resolved, it seems as though `onExit` is never called and the subscription is never closed.
-    - It also seems as though `onExit` isn't necessarily called and completed before the next state transition starts.
-    - __TODO__: confirm the above.
-    - __TODO__: are the dependencies re-resolved and `onExit` called on navigation between child routes? I think they are.
-  - __In controllers__
-    - Example:
-    ```Javascript
-    function AddressBookController($scope, $rootScope, $state, $modal, $meteor, organisation) {
-      $scope.$meteorSubscribe('profileImages');
-      ...
-    ```
-    - Other parallel controllers may make the same subscription, using unnecessary resources.
-  3. Ad-hoc
-    ```Javascript
-    ...
-    if (scope.type === 'Contact') {
-      scope.$meteorSubscribe('contacts');
-      scope.user = scope.$meteorObject(Contacts, scope.userId);
-    }
-    ...
-    ```
-    - If `$scope` is unavailable, e.g. in a factory or service, the subscription needs to be stopped manually.
-    - Same issue as above; the same subscription may also be open in a parallel directive / service / factory.
+
+###### In states
+
+```Javascript
+...
+.state('module', {
+  url: '/module/:moduleId',
+  parent: 'organisation',
+  abstract: true,
+  template: '<ui-view/>',
+  resolve: {
+    moduleSub: function($meteor) {
+      return $meteor.subscribe('modules');
+    },
+    ... Other resolves
+  },
+  onExit: function(moduleSub) {
+    moduleSub.stop();
+  }
+});
+```
+
+Problems:
+
+- If any of the other dependencies are not resolved, it seems as though `onExit` is never called and the subscription is never closed.
+- It also seems as though `onExit` isn't necessarily called and completed before the next state transition starts.
+- __TODO__: confirm the above.
+- __TODO__: are the dependencies re-resolved and `onExit` called on navigation between child routes? I think they are.
+
+###### In controllers
+
+```Javascript
+function AddressBookController($scope, $rootScope, $state, $modal, $meteor, organisation) {
+  $scope.$meteorSubscribe('profileImages');
+  ...
+```
+
+Problems:
+
+- Other parallel controllers may make the same subscription, using unnecessary resources.
+
+###### Ad-hoc
+
+```Javascript
+...
+if (scope.type === 'Contact') {
+  scope.$meteorSubscribe('contacts');
+  scope.user = scope.$meteorObject(Contacts, scope.userId);
+}
+...
+```
+Problems:
+
+  - If `$scope` is unavailable, e.g. in a factory or service, the subscription needs to be stopped manually.
+  - Same issue as above; the same subscription may also be open in a parallel directive / service / factory.
+
+----
 
 - I've found that the drawbacks noted lead to leaks and other quirky bugs.
 - Most of these approaches also require significant boilerplate, leading to code duplication and making it increasingly difficult to manage our ever-expanding codebase. Example:
@@ -100,6 +114,7 @@ An angular.js service that creates and maintains Meteor.js subscriptions across 
 - Expose an interface through which a component (service, controller, directive, etc.) can request a subscription.
 - Handle all subscription cleanup.
 - Only close / open new subscriptions when required. Consider:
+
   - Component A requires a subscription to S. Another component, B, has already requested a subscription to S. Through this interface, both A and B should receive the same subscription handle; only 1 subscription should ever be opened to S.
   - Route A requires a set of subscriptions to be opened, one of which is S. Route B requires a set of subscriptions to be opened, one of which is also S. When the application transitions between the A and B states, a handle to S should never be closed and reopened.
 
