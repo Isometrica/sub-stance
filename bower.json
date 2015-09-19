@@ -1,0 +1,31 @@
+{
+  "name": "sub-stance",
+  "version": "0.0.0",
+  "homepage": "https://github.com/SteveFortune/sub-stance",
+  "description": "An angular-meteor subscription manager with substance.",
+  "keywords": [
+    "MeteorJs",
+    "AngularJs",
+    "angular",
+    "meteor",
+    "subscription",
+    "publication"
+  ],
+  "dependencies": {
+    "angular": ">= 1.0.8",
+    "angular-meteor": "~0.9.3",
+    "angular-ui-router": "~0.2.15",
+    "meteor-client-side": "~0.2.3"
+  },
+  "authors": [
+    "Stephen Fortune <steve.fortune@icecb.com>"
+  ],
+  "license": "GNU AFFERO GENERAL PUBLIC LICENSE",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}
