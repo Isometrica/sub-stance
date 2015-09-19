@@ -4,12 +4,27 @@ module.exports = function(grunt) {
 
   grunt.initConfig({
     pkg: grunt.file.readJSON('package.json'),
+    ngAnnotate: {
+      options: {
+        singleQuotes: true,
+      },
+      subStance: {
+        files: [
+          {
+            expand: true,
+            src: ['src/**/*.js'],
+            ext: '.annot.js',
+            extDot: 'last'
+          },
+        ],
+      }
+    },
     concat: {
       options: {
         separator: ';'
       },
       dist: {
-        src: ['src/**/*.js'],
+        src: ['src/**/*.annot.js'],
         dest: 'dist/<%= pkg.name %>.js'
       }
     },
@@ -52,8 +67,9 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-contrib-jshint');
   grunt.loadNpmTasks('grunt-contrib-watch');
   grunt.loadNpmTasks('grunt-contrib-concat');
+  grunt.loadNpmTasks('grunt-ng-annotate');
 
-  grunt.registerTask('default', ['jshint', 'karma:once', 'concat', 'uglify']);
+  grunt.registerTask('default', ['jshint', 'karma:once', 'concat', 'ngAnnotate', 'uglify']);
   grunt.registerTask('test', ['karma:unit']);
 
 };
