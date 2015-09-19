@@ -4,6 +4,15 @@ module.exports = function(grunt) {
 
   grunt.initConfig({
     pkg: grunt.file.readJSON('package.json'),
+    concat: {
+      options: {
+        separator: ';'
+      },
+      dist: {
+        src: ['src/**/*.js'],
+        dest: 'dist/<%= pkg.name %>.js'
+      }
+    },
     uglify: {
       options: {
         banner: '/*! <%= pkg.name %> <%= grunt.template.today("yyyy-mmm-dd") %> */\n'
@@ -23,6 +32,10 @@ module.exports = function(grunt) {
       }
     },
     karma: {
+      once: {
+        singleRun: true,
+        configFile: 'karma.conf.js'
+      },
       unit: {
         singleRun: false,
         configFile: 'karma.conf.js'
@@ -38,8 +51,9 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-contrib-uglify');
   grunt.loadNpmTasks('grunt-contrib-jshint');
   grunt.loadNpmTasks('grunt-contrib-watch');
+  grunt.loadNpmTasks('grunt-contrib-concat');
 
-  grunt.registerTask('default', ['jshint', 'uglify']);
+  grunt.registerTask('default', ['jshint', 'karma:once', 'concat', 'uglify']);
   grunt.registerTask('test', ['karma:unit']);
 
 };
