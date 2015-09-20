@@ -13,9 +13,8 @@
   ],
   "dependencies": {
     "angular": ">= 1.0.8",
-    "angular-meteor": "~0.9.3",
-    "angular-ui-router": "~0.2.15",
-    "meteor-client-side": "~0.2.3"
+    "angular-meteor": "1.0.0-rc.6",
+    "angular-ui-router": "~0.2.15"
   },
   "authors": [
     "Stephen Fortune <steve.fortune@icecb.com>"
@@ -27,5 +26,12 @@
     "bower_components",
     "test",
     "tests"
-  ]
+  ],
+  "devDependencies": {
+    "angular-mocks": "~1.4.6",
+    "meteor-client-side": "~0.2.2"
+  },
+  "resolutions": {
+    "angular": "1.4.6"
+  }
 }
