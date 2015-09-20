@@ -47,31 +47,18 @@ describe("$subStateMachine", function() {
       }]);
     });
 
-    it("should register subscription conf with autorun computation", function() {
-      var block = function($meteor) {
-        $meteor.subscribe('something', Session.get('reactiveParam'));
-      };
-      $subStateMachine.state('routeName', ['$meteor', block]);
-      var subState = $subStateMachine.get('routeName');
-      expect(subState).toEqual([{
-        autorun: ['$meteor', block]
-      }]);
-    });
+    xit("should register subscription conf with autorun computation");
 
     it("should register array of subscription configurations", function() {
-      var block = function($meteor) {
-        $meteor.subscribe('something', Session.get('reactiveParam'));
-      };
       $subStateMachine.state('routeName', 'sub1', 'sub2', {
         name: 'sub3',
         params: ['one', 'two']
-      }, ['$meteor', block]);
+      });
       var states = $subStateMachine.get('routeName');
       expect(states).toEqual([
         { name: 'sub1', params: [] },
         { name: 'sub2', params: [] },
-        { name: 'sub3', params: ['one', 'two'] },
-        { autorun: ['$meteor', block] }
+        { name: 'sub3', params: ['one', 'two'] }
       ]);
     });
 
@@ -126,52 +113,17 @@ describe("$subStateMachine", function() {
 
     });
 
-    it("should rollback to previous subs on error", function() {
-
-      var stopSpy = jasmine.createSpy('stop');
-      var createSubHande = function(name) {
-        return {
-          name: name,
-          stop: stopSpy
-        };
-      };
-      spyOn($meteor, 'subscribe').and.callFake(function(name) {
-        if (name === 'sub4') {
-          return $q.reject();
-        }
-        return $q.resolve(createSubHande(name));
-      });
-      $subStateMachine
-        .state('routeName1', {
-          name: 'sub1',
-          params: [1, 2, 3]
-        }, {
-          name: 'sub2',
-          params: [1, 2]
-        })
-        .state('routeName2', 'sub3', 'sub4');
-
-      $subStateMachine.transition('routeName1');
-      $rootScope.$digest();
-
-      $subStateMachine.transition('routeName2');
-      $rootScope.$digest();
-
-      var subs = stopSpy.all();
-      
-      // Assert sub 1 and 2 weren't stopped
-      // Assert that sub 3 was sucessfully openned
-      // Assert that an attempt to open sub 4 was made
-      // Assert that sub 3 was stopped
+    it("should discard unrequired subscriptions", function() {
 
     });
 
+    xit("should reuse old subscriptions");
+    xit("should clear all subs on empty state conf");
+
+    xit("should rollback to previous subs on error");
     xit("should start subscriptions with autorun blocks");
     xit("should re-run autorun blocks");
     // xit("should resolve promise result once all subscriptions have started");
-    xit("should discard unrequired subscriptions");
-    xit("should reuse old subscriptions");
-    xit("should clear all subs on empty state conf");
 
   });
 
