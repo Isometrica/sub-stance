@@ -160,8 +160,8 @@ describe("$subStateMachine", function() {
       });
       $rootScope.$digest();
 
-      expect(stop.calls.count()).toBe(2);
       // TODO: Assert stop was called on the first 2 subs not the second 2
+      expect(stop.calls.count()).toBe(2);
       expect($subStateMachine._currentSubs).toEqual({
         'sub1,a,b,c': subHandle,
         'sub3,b': subHandle
@@ -169,7 +169,62 @@ describe("$subStateMachine", function() {
 
     });
 
-    xit("should reuse old subscriptions");
+    it("should reuse old subscriptions", function() {
+
+      var stop = jasmine.createSpy('stop');
+      var subHandle = { stop: stop };
+      spyOn($meteor, 'subscribe').and.returnValue($q.when(subHandle));
+      $subStateMachine
+        .state('r1', {
+          name: 'sub1',
+          params: ['a', 'b', 'c']
+        }, {
+          name: 'sub2',
+          params: ['one', 'two', 'three']
+        }, {
+          name: 'destroyMe',
+          params: ['one', 'two']
+        })
+        .state('r2', {
+          name: 'sub1',
+          params: ['one', 'two', 'three']
+        }, {
+          name: 'sub2',
+          params: ['a', 'b', 'c']
+        }, {
+          name: 'replace',
+          params: ['one']
+        });
+
+      $subStateMachine.transition('r1', {
+        a: 1,
+        b: 2,
+        c: 3,
+        one: 4,
+        two: 5,
+        three: 6
+      });
+      $rootScope.$digest();
+
+      $subStateMachine.transition('r2', {
+        a: 4,
+        b: 5,
+        c: 6,
+        one: 1,
+        two: 2,
+        three: 3
+      });
+      $rootScope.$digest();
+
+      // TODO: Assert stop was called only destroyMe
+      expect(stop.calls.count()).toBe(1);
+      expect($subStateMachine._currentSubs).toEqual({
+        'sub1,1,2,3': subHandle,
+        'sub2,4,5,6': subHandle,
+        'replace,1': subHandle
+      });
+    });
+
     xit("should clear all subs on empty state conf");
 
     xit("should rollback to previous subs on error");

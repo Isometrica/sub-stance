@@ -36,7 +36,7 @@ function $subStateMachine($meteor, $q) {
       _.each(self._currentSubs, function(handle, key) {
         if (!_.some(nextConfs, function(nextConf) {
           var payload = self._constructPayload(nextConf, nextParams);
-          return self._currentSubs[payload.hashKey]
+          return payload.hashKey === key;
         })) {
           handle.stop();
           delete self._currentSubs[key]
