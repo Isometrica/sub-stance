@@ -1,3 +1,4 @@
+'use strict';
 
 angular
   .module('isa.substance')
@@ -38,4 +39,5 @@ function $subStateMachine() {
       return this.subStates[stateName];
     }
   };
+
 }
