@@ -2,11 +2,17 @@
 describe("$subStateMachine", function() {
 
   'use strict';
-  var $subStateMachine = '';
+  var $subStateMachine;
+  var $meteor;
+  var $q;
+  var $rootScope;
 
   beforeEach(module('isa.substance'));
-  beforeEach(inject(function(_$subStateMachine_) {
+  beforeEach(inject(function(_$subStateMachine_, _$meteor_, _$q_, _$rootScope_) {
     $subStateMachine = _$subStateMachine_;
+    $meteor = _$meteor_;
+    $q = _$q_;
+    $rootScope = _$rootScope_;
   }));
 
   describe('.get', function() {
@@ -71,17 +77,25 @@ describe("$subStateMachine", function() {
 
   describe('.transition', function() {
 
-    it("should start simple subscriptions", function() {
+    it("should start set of simple subscriptions", function() {
 
-      $subStateMachine.state('routeName', 'subName');
+      spyOn($meteor, 'subscribe').and.returnValue($q.when({}));
+      $subStateMachine.state('routeName', 'sub1', 'sub2');
+
       $subStateMachine.transition('routeName');
-      expect();
+      $rootScope.$digest();
+
+      expect($subStateMachine._currentSubs).toEqual([{}, {}]);
+      expect($meteor.subscribe.calls.argsFor(0)).toEqual(['sub1']);
+      expect($meteor.subscribe.calls.argsFor(1)).toEqual(['sub2']);
 
     });
-
+    xit("should start single subscription");
+    xit("should clear all subs on empty state conf");
     xit("should start subscription with parameters from route state");
     xit("should start subscription with autorun block");
     xit("should re-run autorun blocks");
+    xit("should rollback to previous subs on error");
     xit("should resolve promise result once all subscriptions have started");
     xit("should discard unrequired old subscriptions");
     xit("should reuse old subscriptions");
