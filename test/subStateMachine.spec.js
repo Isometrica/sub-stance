@@ -69,4 +69,23 @@ describe("$subStateMachine", function() {
 
   });
 
+  describe('.transition', function() {
+
+    it("should start simple subscriptions", function() {
+
+      $subStateMachine.state('routeName', 'subName');
+      $subStateMachine.transition('routeName');
+      expect();
+
+    });
+
+    xit("should start subscription with parameters from route state");
+    xit("should start subscription with autorun block");
+    xit("should re-run autorun blocks");
+    xit("should resolve promise result once all subscriptions have started");
+    xit("should discard unrequired old subscriptions");
+    xit("should reuse old subscriptions");
+
+  });
+
 });
