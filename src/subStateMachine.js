@@ -22,21 +22,24 @@ function $subStateMachine($meteor, $q) {
   };
 
   return {
+    _currentSubs: {},
     subStates: {},
-    _currentSubs: [],
     state: function(stateName, sub) {
       var args = Array.prototype.slice.call(arguments);
       var subConfs = args.slice(1);
       this.subStates[stateName] = _.map(subConfs, createStateConf);
       return this;
     },
-    transition: function(stateName) {
+    transition: function(stateName, stateParams) {
       var stateConfs = this.get(stateName);
       var self = this;
       return $q.all(_.map(stateConfs, function(conf) {
-        var subArgs = [conf.name].concat(conf.params);
-        return $meteor.subscribe.apply($meteor, subArgs).then(function(handle) {
-          self._currentSubs.push(handle);
+        var payload = [conf.name].concat(_.map(conf.params, function(param) {
+          return stateParams[param];
+        }));
+        return $meteor.subscribe.apply($meteor, payload).then(function(handle) {
+          var hashKey = payload.join(',');
+          self._currentSubs[hashKey] = handle;
         });
       }));
     },

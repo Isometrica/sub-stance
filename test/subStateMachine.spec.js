@@ -89,7 +89,10 @@ describe("$subStateMachine", function() {
       expect($meteor.subscribe.calls.argsFor(0)).toEqual(['sub1']);
       expect($meteor.subscribe.calls.argsFor(1)).toEqual(['sub2']);
       $rootScope.$digest();
-      expect($subStateMachine._currentSubs).toEqual([{}, {}]);
+      expect($subStateMachine._currentSubs).toEqual({
+        'sub1': {},
+        'sub2': {}
+      });
 
     });
 
@@ -98,22 +101,31 @@ describe("$subStateMachine", function() {
       spyOn($meteor, 'subscribe').and.returnValue($q.when({}));
       $subStateMachine.state('routeName', {
         name: 'sub',
-        params: [1, 2, 3]
+        params: ['one', 'two', 'three']
       }, {
         name: 'sub',
-        params: [1, 2]
+        params: ['one', 'two']
       });
 
-      $subStateMachine.transition('routeName');
+      $subStateMachine.transition('routeName', {
+        one: 1,
+        two: 2,
+        three: 3
+      });
 
       expect($meteor.subscribe.calls.argsFor(0)).toEqual(['sub', 1, 2, 3]);
       expect($meteor.subscribe.calls.argsFor(1)).toEqual(['sub', 1, 2]);
       $rootScope.$digest();
-      expect($subStateMachine._currentSubs).toEqual([{}, {}]);
+      expect($subStateMachine._currentSubs).toEqual({
+        'sub,1,2,3': {},
+        'sub,1,2': {}
+      });
 
     });
 
     it("should discard unrequired subscriptions", function() {
+
+
 
     });
 
