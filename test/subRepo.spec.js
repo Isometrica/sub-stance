@@ -1,5 +1,5 @@
 
-describe("subs", function() {
+describe("$subRepo", function() {
   it("should fail", function() {
     expect(false).toBe(false);
   });

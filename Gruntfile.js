@@ -12,8 +12,8 @@ module.exports = function(grunt) {
         files: [
           {
             expand: true,
-            src: ['src/**/*.js'],
-            ext: '.annot.js',
+            src: ['src/**/*.ng.js'],
+            ext: '.js',
             extDot: 'last'
           },
         ],
@@ -21,10 +21,17 @@ module.exports = function(grunt) {
     },
     concat: {
       options: {
-        separator: ';'
+        banner: '<%= meta.banner %>\n\n' +
+                '/* commonjs package manager support (eg componentjs) */\n' +
+                'if (typeof module !== "undefined" && typeof exports !== "undefined" && module.exports === exports){\n' +
+                '  module.exports = \'ui.router\';\n' +
+                '}\n\n' +
+                '\'use strict\';' +
+                '(function (window, angular, undefined) {\n',
+        footer: '})(window, window.angular);'
       },
       dist: {
-        src: ['src/**/*.annot.js'],
+        src: ['src/**/*.js'],
         dest: 'dist/<%= pkg.name %>.js'
       }
     },
@@ -69,7 +76,7 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-contrib-concat');
   grunt.loadNpmTasks('grunt-ng-annotate');
 
-  grunt.registerTask('default', ['jshint', 'karma:once', 'concat', 'ngAnnotate', 'uglify']);
+  grunt.registerTask('default', ['jshint', 'karma:once', 'concat', 'uglify']);
   grunt.registerTask('test', ['karma:unit']);
 
 };
