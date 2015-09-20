@@ -23,15 +23,20 @@ function $subStateMachine($meteor, $q) {
 
   return {
     subStates: {},
+    _currentState: null,
     _currentSubs: [],
     state: function(stateName, sub) {
       var args = Array.prototype.slice.call(arguments);
       var subConfs = args.slice(1);
-      this.subStates[stateName] = _.map(subConfs, createStateConf);;
+      this.subStates[stateName] = _.map(subConfs, createStateConf);
+      return this;
     },
     transition: function(stateName) {
       var stateConfs = this.get(stateName);
       var self = this;
+      if (self._currentState === stateName) {
+        return $q.resolve();
+      }
       return $q.all(_.map(stateConfs, function(conf) {
         var subArgs = [conf.name].concat(conf.params);
         return $meteor.subscribe.apply($meteor, subArgs).then(function(handle) {

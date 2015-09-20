@@ -75,7 +75,9 @@ describe("$subStateMachine", function() {
       ]);
     });
 
-    xit("should return this");
+    it("should return this", function() {
+      expect($subStateMachine.state('routeName')).toBe($subStateMachine);
+    });
 
   });
 
@@ -99,7 +101,6 @@ describe("$subStateMachine", function() {
 
       expect($meteor.subscribe.calls.argsFor(0)).toEqual(['sub1']);
       expect($meteor.subscribe.calls.argsFor(1)).toEqual(['sub2']);
-
       $rootScope.$digest();
       expect($subStateMachine._currentSubs).toEqual([{}, {}]);
 
@@ -120,16 +121,54 @@ describe("$subStateMachine", function() {
 
       expect($meteor.subscribe.calls.argsFor(0)).toEqual(['sub', 1, 2, 3]);
       expect($meteor.subscribe.calls.argsFor(1)).toEqual(['sub', 1, 2]);
-
       $rootScope.$digest();
       expect($subStateMachine._currentSubs).toEqual([{}, {}]);
 
     });
 
-    xit("should start subscription with autorun block");
+    it("should rollback to previous subs on error", function() {
+
+      var stopSpy = jasmine.createSpy('stop');
+      var createSubHande = function(name) {
+        return {
+          name: name,
+          stop: stopSpy
+        };
+      };
+      spyOn($meteor, 'subscribe').and.callFake(function(name) {
+        if (name === 'sub4') {
+          return $q.reject();
+        }
+        return $q.resolve(createSubHande(name));
+      });
+      $subStateMachine
+        .state('routeName1', {
+          name: 'sub1',
+          params: [1, 2, 3]
+        }, {
+          name: 'sub2',
+          params: [1, 2]
+        })
+        .state('routeName2', 'sub3', 'sub4');
+
+      $subStateMachine.transition('routeName1');
+      $rootScope.$digest();
+
+      $subStateMachine.transition('routeName2');
+      $rootScope.$digest();
+
+      var subs = stopSpy.all();
+      
+      // Assert sub 1 and 2 weren't stopped
+      // Assert that sub 3 was sucessfully openned
+      // Assert that an attempt to open sub 4 was made
+      // Assert that sub 3 was stopped
+
+    });
+
+    xit("should start subscriptions with autorun blocks");
     xit("should re-run autorun blocks");
-    xit("should rollback to previous subs on error");
-    xit("should resolve promise result once all subscriptions have started");
+    // xit("should resolve promise result once all subscriptions have started");
     xit("should discard unrequired subscriptions");
     xit("should reuse old subscriptions");
     xit("should clear all subs on empty state conf");
