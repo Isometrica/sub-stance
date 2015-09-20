@@ -6,18 +6,19 @@ angular
 function $subStateMachine($meteor, $q) {
 
   var createStateConf = function(sub) {
-    var conf;
     if (angular.isArray(sub) || angular.isFunction(sub)) {
-      conf = { autorun: sub };
+      return { autorun: sub };
     } else if (angular.isObject(sub)) {
-      conf = {
+      return {
         name: sub.name,
         params: sub.params
       };
     } else {
-      conf = { name: sub };
+      return {
+        name: sub,
+        params: []
+      };
     }
-    return conf;
   };
 
   return {
@@ -25,20 +26,15 @@ function $subStateMachine($meteor, $q) {
     _currentSubs: [],
     state: function(stateName, sub) {
       var args = Array.prototype.slice.call(arguments);
-      var subConf;
-      if (args.length > 2) {
-        var subConfs = args.slice(1);
-        subConf = _.map(subConfs, createStateConf);
-      } else {
-        subConf = createStateConf(sub);
-      }
-      this.subStates[stateName] = subConf;
+      var subConfs = args.slice(1);
+      this.subStates[stateName] = _.map(subConfs, createStateConf);;
     },
     transition: function(stateName) {
       var stateConfs = this.get(stateName);
       var self = this;
       return $q.all(_.map(stateConfs, function(conf) {
-        return $meteor.subscribe(conf.name).then(function(handle) {
+        var subArgs = [conf.name].concat(conf.params);
+        return $meteor.subscribe.apply($meteor, subArgs).then(function(handle) {
           self._currentSubs.push(handle);
         });
       }));
