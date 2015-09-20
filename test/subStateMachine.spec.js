@@ -125,7 +125,47 @@ describe("$subStateMachine", function() {
 
     it("should discard unrequired subscriptions", function() {
 
+      var stop = jasmine.createSpy('stop');
+      var subHandle = { stop: stop };
+      spyOn($meteor, 'subscribe').and.returnValue($q.when(subHandle));
+      $subStateMachine
+        .state('r1', {
+          name: 'sub1',
+          params: ['a', 'b', 'c']
+        }, {
+          name: 'sub2',
+          params: ['one', 'two']
+        })
+        .state('r2', {
+          name: 'sub1',
+          params: ['a', 'b', 'c']
+        }, {
+          name: 'sub3',
+          params: ['b']
+        });
 
+      $subStateMachine.transition('r1', {
+        a: 1,
+        b: 2,
+        c: 3,
+        one: 4,
+        two: 5
+      });
+      $rootScope.$digest();
+
+      $subStateMachine.transition('r2', {
+        a: 'a',
+        b: 'b',
+        c: 'c'
+      });
+      $rootScope.$digest();
+
+      expect(stop.calls.count()).toBe(2);
+      // TODO: Assert stop was called on the first 2 subs not the second 2
+      expect($subStateMachine._currentSubs).toEqual({
+        'sub1,a,b,c': subHandle,
+        'sub3,b': subHandle
+      });
 
     });
 

@@ -6,9 +6,9 @@ angular
 function $subStateMachine($meteor, $q) {
 
   var createStateConf = function(sub) {
-    if (angular.isArray(sub) || angular.isFunction(sub)) {
+    if (_.isArray(sub) || _.isFunction(sub)) {
       return { autorun: sub };
-    } else if (angular.isObject(sub)) {
+    } else if (_.isObject(sub)) {
       return {
         name: sub.name,
         params: sub.params
@@ -30,16 +30,36 @@ function $subStateMachine($meteor, $q) {
       this.subStates[stateName] = _.map(subConfs, createStateConf);
       return this;
     },
-    transition: function(stateName, stateParams) {
-      var stateConfs = this.get(stateName);
+    _migrate: function(nextName, nextParams) {
       var self = this;
+      var nextConfs = self.get(nextName);
+      _.each(self._currentSubs, function(handle, key) {
+        if (!_.some(nextConfs, function(nextConf) {
+          var payload = self._constructPayload(nextConf, nextParams);
+          return self._currentSubs[payload.hashKey]
+        })) {
+          handle.stop();
+          delete self._currentSubs[key]
+        }
+      });
+    },
+    _constructPayload: function(conf, candidateParams) {
+      var args = [conf.name].concat(_.map(conf.params, function(param) {
+        return candidateParams[param];
+      }));
+      return {
+        args: args,
+        hashKey: args.join(','),
+      };
+    },
+    transition: function(stateName, stateParams) {
+      var self = this;
+      var stateConfs = self.get(stateName);
+      self._migrate(stateName, stateParams);
       return $q.all(_.map(stateConfs, function(conf) {
-        var payload = [conf.name].concat(_.map(conf.params, function(param) {
-          return stateParams[param];
-        }));
-        return $meteor.subscribe.apply($meteor, payload).then(function(handle) {
-          var hashKey = payload.join(',');
-          self._currentSubs[hashKey] = handle;
+        var payload = self._constructPayload(conf, stateParams);
+        return $meteor.subscribe.apply($meteor, payload.args).then(function(handle) {
+          self._currentSubs[payload.hashKey] = handle;
         });
       }));
     },
