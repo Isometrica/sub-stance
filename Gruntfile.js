@@ -21,8 +21,7 @@ module.exports = function(grunt) {
     },
     concat: {
       options: {
-        banner: '<%= meta.banner %>\n\n' +
-                '/* commonjs package manager support (eg componentjs) */\n' +
+        banner: '/* commonjs package manager support (eg componentjs) */\n' +
                 'if (typeof module !== "undefined" && typeof exports !== "undefined" && module.exports === exports){\n' +
                 '  module.exports = \'ui.router\';\n' +
                 '}\n\n' +

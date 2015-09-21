@@ -43,7 +43,7 @@ function decorateStateProvider($stateProvider, $rootScope) {
   $stateProvider.decorator('data', dataDecorateFn);
 
 }
-decorateStateProvider.$inject = ['$stateProvider']
+decorateStateProvider.$inject = ['$stateProvider'];
 
 function stateChangeListener($rootScope) {
 
