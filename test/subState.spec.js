@@ -1,15 +1,17 @@
 
-describe("$subStateMachine", function() {
+describe("$subState", function() {
 
   'use strict';
-  var $subStateMachine;
+  var $subStateProvider;
+  var $subState;
   var $meteor;
   var $q;
   var $rootScope;
 
   beforeEach(module('isa.substance'));
-  beforeEach(inject(function(_$subStateMachine_, _$meteor_, _$q_, _$rootScope_) {
-    $subStateMachine = _$subStateMachine_;
+  beforeEach(inject(function(_$subStateProvider_, _$subState_, _$meteor_, _$q_, _$rootScope_) {
+    $subStateProvider = _$subStateProvider_;
+    $subState = _$subState_;
     $meteor = _$meteor_;
     $q = _$q_;
     $rootScope = _$rootScope_;
@@ -18,8 +20,8 @@ describe("$subStateMachine", function() {
   describe('.get', function() {
 
     it("should get array of subscription conf objects", function() {
-      $subStateMachine.state('routeName', 'subName', 'anotherSub', 'yetAnother');
-      expect($subStateMachine.get('routeName')).toEqual(jasmine.any(Array));
+      $subStateProvider.state('routeName', 'subName', 'anotherSub', 'yetAnother');
+      expect($subStateProvider.get('routeName')).toEqual(jasmine.any(Array));
     });
 
   });
@@ -27,8 +29,8 @@ describe("$subStateMachine", function() {
   describe(".state", function() {
 
     it("should register simple subscription conf", function() {
-      $subStateMachine.state('routeName', 'subName');
-      var subState = $subStateMachine.get('routeName');
+      $subStateProvider.state('routeName', 'subName');
+      var subState = $subStateProvider.get('routeName');
       expect(subState).toEqual([{
         name: 'subName',
         params: []
@@ -36,11 +38,11 @@ describe("$subStateMachine", function() {
     });
 
     it("should register subscription conf with params", function() {
-      $subStateMachine.state('routeName', {
+      $subStateProvider.state('routeName', {
         name: 'subName',
         params: ['routeParam1', 'routeParam2']
       });
-      var subState = $subStateMachine.get('routeName');
+      var subState = $subStateProvider.get('routeName');
       expect(subState).toEqual([{
         name: 'subName',
         params: ['routeParam1', 'routeParam2']
@@ -50,11 +52,11 @@ describe("$subStateMachine", function() {
     xit("should register subscription conf with autorun computation");
 
     it("should register array of subscription configurations", function() {
-      $subStateMachine.state('routeName', 'sub1', 'sub2', {
+      $subStateProvider.state('routeName', 'sub1', 'sub2', {
         name: 'sub3',
         params: ['one', 'two']
       });
-      var states = $subStateMachine.get('routeName');
+      var states = $subStateProvider.get('routeName');
       expect(states).toEqual([
         { name: 'sub1', params: [] },
         { name: 'sub2', params: [] },
@@ -63,7 +65,7 @@ describe("$subStateMachine", function() {
     });
 
     it("should return this", function() {
-      expect($subStateMachine.state('routeName')).toBe($subStateMachine);
+      expect($subStateProvider.state('routeName')).toBe($subStateProvider);
     });
 
   });
@@ -72,8 +74,8 @@ describe("$subStateMachine", function() {
 
     it("should return promise", function() {
 
-      $subStateMachine.state('routeName');
-      var pr = $subStateMachine.transition('routeName');
+      $subStateProvider.state('routeName');
+      var pr = $subState.transition('routeName');
       expect(pr).toEqual(jasmine.any(Object));
       expect(pr.then).toEqual(jasmine.any(Function));
 
@@ -82,14 +84,14 @@ describe("$subStateMachine", function() {
     it("should start simple subscriptions", function() {
 
       spyOn($meteor, 'subscribe').and.returnValue($q.when({}));
-      $subStateMachine.state('routeName', 'sub1', 'sub2');
+      $subStateProvider.state('routeName', 'sub1', 'sub2');
 
-      $subStateMachine.transition('routeName');
+      $subState.transition('routeName');
 
       expect($meteor.subscribe.calls.argsFor(0)).toEqual(['sub1']);
       expect($meteor.subscribe.calls.argsFor(1)).toEqual(['sub2']);
       $rootScope.$digest();
-      expect($subStateMachine._currentSubs).toEqual({
+      expect($subState._currentSubs).toEqual({
         'sub1': {},
         'sub2': {}
       });
@@ -99,7 +101,7 @@ describe("$subStateMachine", function() {
     it("should start subscriptions with parameters from route state", function() {
 
       spyOn($meteor, 'subscribe').and.returnValue($q.when({}));
-      $subStateMachine.state('routeName', {
+      $subStateProvider.state('routeName', {
         name: 'sub',
         params: ['one', 'two', 'three']
       }, {
@@ -107,7 +109,7 @@ describe("$subStateMachine", function() {
         params: ['one', 'two']
       });
 
-      $subStateMachine.transition('routeName', {
+      $subState.transition('routeName', {
         one: 1,
         two: 2,
         three: 3
@@ -116,7 +118,7 @@ describe("$subStateMachine", function() {
       expect($meteor.subscribe.calls.argsFor(0)).toEqual(['sub', 1, 2, 3]);
       expect($meteor.subscribe.calls.argsFor(1)).toEqual(['sub', 1, 2]);
       $rootScope.$digest();
-      expect($subStateMachine._currentSubs).toEqual({
+      expect($subState._currentSubs).toEqual({
         'sub,1,2,3': {},
         'sub,1,2': {}
       });
@@ -128,7 +130,7 @@ describe("$subStateMachine", function() {
       var stop = jasmine.createSpy('stop');
       var subHandle = { stop: stop };
       spyOn($meteor, 'subscribe').and.returnValue($q.when(subHandle));
-      $subStateMachine
+      $subStateProvider
         .state('r1', {
           name: 'sub1',
           params: ['a', 'b', 'c']
@@ -144,7 +146,7 @@ describe("$subStateMachine", function() {
           params: ['b']
         });
 
-      $subStateMachine.transition('r1', {
+      $subState.transition('r1', {
         a: 1,
         b: 2,
         c: 3,
@@ -153,7 +155,7 @@ describe("$subStateMachine", function() {
       });
       $rootScope.$digest();
 
-      $subStateMachine.transition('r2', {
+      $subState.transition('r2', {
         a: 'a',
         b: 'b',
         c: 'c'
@@ -162,7 +164,7 @@ describe("$subStateMachine", function() {
 
       // TODO: Assert stop was called on the first 2 subs not the second 2
       expect(stop.calls.count()).toBe(2);
-      expect($subStateMachine._currentSubs).toEqual({
+      expect($subState._currentSubs).toEqual({
         'sub1,a,b,c': subHandle,
         'sub3,b': subHandle
       });
@@ -174,7 +176,7 @@ describe("$subStateMachine", function() {
       var stop = jasmine.createSpy('stop');
       var subHandle = { stop: stop };
       spyOn($meteor, 'subscribe').and.returnValue($q.when(subHandle));
-      $subStateMachine
+      $subStateProvider
         .state('r1', {
           name: 'sub1',
           params: ['a', 'b', 'c']
@@ -196,7 +198,7 @@ describe("$subStateMachine", function() {
           params: ['one']
         });
 
-      $subStateMachine.transition('r1', {
+      $subState.transition('r1', {
         a: 1,
         b: 2,
         c: 3,
@@ -206,7 +208,7 @@ describe("$subStateMachine", function() {
       });
       $rootScope.$digest();
 
-      $subStateMachine.transition('r2', {
+      $subState.transition('r2', {
         a: 4,
         b: 5,
         c: 6,
@@ -219,7 +221,7 @@ describe("$subStateMachine", function() {
       // TODO: Assert stop was called only destroyMe
       expect(stop.calls.count()).toBe(1);
       expect($meteor.subscribe.calls.count()).toBe(4);
-      expect($subStateMachine._currentSubs).toEqual({
+      expect($subState._currentSubs).toEqual({
         'sub1,1,2,3': subHandle,
         'sub2,4,5,6': subHandle,
         'replace,1': subHandle
@@ -231,7 +233,7 @@ describe("$subStateMachine", function() {
       var stop = jasmine.createSpy('stop');
       var subHandle = { stop: stop };
       spyOn($meteor, 'subscribe').and.returnValue($q.when(subHandle));
-      $subStateMachine
+      $subStateProvider
         .state('r1', {
           name: 'sub1',
           params: ['a', 'b', 'c']
@@ -240,7 +242,7 @@ describe("$subStateMachine", function() {
           params: ['e', 'f', 'g']
         });
 
-      $subStateMachine.transition('r1', {
+      $subState.transition('r1', {
         a: 1,
         b: 2,
         c: 3,
@@ -250,7 +252,7 @@ describe("$subStateMachine", function() {
       });
       $rootScope.$digest();
 
-      $subStateMachine.transition('r1', {
+      $subState.transition('r1', {
         a: 2,
         b: 3,
         c: 4,
@@ -260,7 +262,7 @@ describe("$subStateMachine", function() {
       });
       $rootScope.$digest();
 
-      expect($subStateMachine._currentSubs).toEqual({
+      expect($subState._currentSubs).toEqual({
         'sub1,2,3,4': subHandle,
         'sub2,5,6,7': subHandle
       });
@@ -273,25 +275,25 @@ describe("$subStateMachine", function() {
       var subHandle = { stop: stop };
       spyOn($meteor, 'subscribe').and.returnValue($q.when(subHandle));
 
-      $subStateMachine
+      $subStateProvider
         .state('r1', 'sub1', 'sub2')
         .state('r2');
 
-      $subStateMachine.transition('r1');
+      $subState.transition('r1');
       $rootScope.$digest();
-      $subStateMachine.transition('r2');
+      $subState.transition('r2');
       $rootScope.$digest();
 
       expect(stop.calls.count()).toBe(2);
-      expect($subStateMachine._currentSubs).toEqual({});
+      expect($subState._currentSubs).toEqual({});
 
-      $subStateMachine.transition('r1');
+      $subState.transition('r1');
       $rootScope.$digest();
-      $subStateMachine.transition('r3');
+      $subState.transition('r3');
       $rootScope.$digest();
 
       expect(stop.calls.count()).toBe(4);
-      expect($subStateMachine._currentSubs).toEqual({});
+      expect($subState._currentSubs).toEqual({});
 
     });
 
