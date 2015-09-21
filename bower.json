@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "homepage": "https://github.com/SteveFortune/sub-stance",
   "description": "An angular-meteor subscription manager with substance.",
+  "main": "dist/sub-stance.js",
   "keywords": [
     "MeteorJs",
     "AngularJs",

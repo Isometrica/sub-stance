@@ -11,10 +11,11 @@
     "tests"
   ],
   "dependencies": {
+    "sub-stance": "https://github.com/SteveFortune/sub-stance.git"
   },
   "overrides": {
     "angular": {
-      "main": [] 
+      "main": []
     }
   }
 }
