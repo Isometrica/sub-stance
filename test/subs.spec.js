@@ -71,6 +71,38 @@ describe("$subs", function() {
 
   });
 
+  xdescribe('.add', function() {
+
+    it("should create sub state if not exists", function() {
+
+      $subsProvider.add('new', { name: 'sub', params: ['one', 'two']});
+      expect($subsProvider.get('new')).toEqual([{
+        name: 'sub',
+        params: ['one', 'two']
+      }]);
+
+    });
+
+    it("should add new conf object to existing state", function() {
+
+      $subsProvider.state('state', 'sub1', 'sub2');
+      $subsProvider.add('state', { name: 'sub3', params: ['one', 'two']});
+      expect($subsProvider.get('new')).toEqual([
+        { name: 'sub1', params: [] },
+        { name: 'sub2', params: [] },
+        { name: 'sub3', params: ['one', 'two'] }
+      ]);
+
+    });
+
+    it("should add array of conf objects to existing state", function() {
+
+
+
+    });
+
+  });
+
   describe('.transition', function() {
 
     it("should return promise", function() {
