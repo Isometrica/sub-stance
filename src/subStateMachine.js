@@ -33,15 +33,23 @@ function $subStateMachine($meteor, $q) {
     _migrate: function(nextName, nextParams) {
       var self = this;
       var nextConfs = self.get(nextName);
-      _.each(self._currentSubs, function(handle, key) {
-        if (!_.some(nextConfs, function(nextConf) {
-          var payload = self._constructPayload(nextConf, nextParams);
+      var nextPayloads = _.map(nextConfs, function(conf) {
+        return self._constructPayload(conf, nextParams);
+      });
+      var payloadDelta = _.filter(nextPayloads, function(payload) {
+        return !_.some(self._currentSubs, function(handle, key) {
           return payload.hashKey === key;
+        });
+      });
+      _.each(self._currentSubs, function(handle, key) {
+        if (!_.some(nextPayloads, function(p) {
+          return p.hashKey === key;
         })) {
           handle.stop();
-          delete self._currentSubs[key]
+          delete self._currentSubs[key];
         }
       });
+      return payloadDelta;
     },
     _constructPayload: function(conf, candidateParams) {
       var args = [conf.name].concat(_.map(conf.params, function(param) {
@@ -54,10 +62,8 @@ function $subStateMachine($meteor, $q) {
     },
     transition: function(stateName, stateParams) {
       var self = this;
-      var stateConfs = self.get(stateName);
-      self._migrate(stateName, stateParams);
-      return $q.all(_.map(stateConfs, function(conf) {
-        var payload = self._constructPayload(conf, stateParams);
+      var statePayloads = self._migrate(stateName, stateParams);
+      return $q.all(_.map(statePayloads, function(payload) {
         return $meteor.subscribe.apply($meteor, payload.args).then(function(handle) {
           self._currentSubs[payload.hashKey] = handle;
         });

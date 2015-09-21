@@ -218,6 +218,7 @@ describe("$subStateMachine", function() {
 
       // TODO: Assert stop was called only destroyMe
       expect(stop.calls.count()).toBe(1);
+      expect($meteor.subscribe.calls.count()).toBe(4);
       expect($subStateMachine._currentSubs).toEqual({
         'sub1,1,2,3': subHandle,
         'sub2,4,5,6': subHandle,
