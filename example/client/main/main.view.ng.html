@@ -1,0 +1,21 @@
+<div class="main container">
+  <h1>Things</h1>
+  <form ng-submit="save()" name="form" novalidate="" class="thing-form">
+    <p class="input-group">
+      <input type="text" placeholder="Name" ng-model="newThing.name" class="form-control"/><span class="input-group-btn">
+        <input type="submit" value="Add" class="btn btn-primary"/></span>
+    </p>
+  </form>
+  <div class="panel panel-default">
+    <div class="panel-body">
+      <ul class="nav nav-tabs nav-stacked col-md-9 col-sm-12">
+        <li ng-repeat="thing in things">
+          <p>{{ thing.name }}
+            <button ng-click="remove(thing)" class="btn">&times;</button>
+          </p>
+        </li>
+      </ul>
+    </div>
+  </div>
+  <p>Total number of things: {{thingsCount.count}}</p>
+</div>

@@ -148,7 +148,7 @@ describe("$stateProvider", function() {
       $state.go('a');
       $rootScope.$digest();
 
-      expect($state.current.resolve['$__subs']).toEqual(jasmine.any(Array));
+      expect($state.current.resolve.$__subs).toEqual(jasmine.any(Array));
 
     });
 
