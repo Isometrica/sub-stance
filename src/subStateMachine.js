@@ -33,14 +33,22 @@ function $subStateMachine($meteor, $q) {
     _migrate: function(nextName, nextParams) {
       var self = this;
       var nextConfs = self.get(nextName);
+      // Map the subscription configuration for the next state to a set
+      // of payloads that will be used to evaluate a subscription.
       var nextPayloads = _.map(nextConfs, function(conf) {
         return self._constructPayload(conf, nextParams);
       });
+      // Set of payloads where the payload is an element of the next state
+      // payloads and there does not exist some key in the current table of
+      // subscriptions equal to the payload's hash key (i.e. )
       var payloadDelta = _.filter(nextPayloads, function(payload) {
         return !_.some(self._currentSubs, function(handle, key) {
           return payload.hashKey === key;
         });
       });
+      // Stop all current subscriptions and remove them from the table if
+      // there does not exist an element in the set of pending payloads
+      // with an equal hash key.
       _.each(self._currentSubs, function(handle, key) {
         if (!_.some(nextPayloads, function(p) {
           return p.hashKey === key;
