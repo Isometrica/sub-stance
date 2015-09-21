@@ -114,7 +114,7 @@ function $subStateProvider() {
         });
         // Set of payloads where the payload is an element of the next state
         // payloads and there does not exist some key in the current table of
-        // subscriptions equal to the payload's hash key (i.e. )
+        // subscriptions equal to the payload's hash key.
         var payloadDelta = _.filter(nextPayloads, function(payload) {
           return !_.some(self._currentSubs, function(handle, key) {
             return payload.hashKey === key;

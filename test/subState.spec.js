@@ -8,9 +8,10 @@ describe("$subState", function() {
   var $q;
   var $rootScope;
 
-  beforeEach(module('isa.substance'));
-  beforeEach(inject(function(_$subStateProvider_, _$subState_, _$meteor_, _$q_, _$rootScope_) {
+  beforeEach(module('isa.substance', function(_$subStateProvider_) {
     $subStateProvider = _$subStateProvider_;
+  }));
+  beforeEach(inject(function(_$subState_, _$meteor_, _$q_, _$rootScope_) {
     $subState = _$subState_;
     $meteor = _$meteor_;
     $q = _$q_;
