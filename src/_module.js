@@ -1,5 +1,6 @@
 
 angular
   .module('isa.substance', [
-    'angular-meteor'
+    'angular-meteor',
+    'ui.router'
   ]);
