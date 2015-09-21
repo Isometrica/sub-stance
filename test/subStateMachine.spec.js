@@ -226,7 +226,33 @@ describe("$subStateMachine", function() {
       });
     });
 
-    xit("should clear all subs on empty state conf");
+    it("should clear all subs on empty state conf", function() {
+
+      var stop = jasmine.createSpy('stop');
+      var subHandle = { stop: stop };
+      spyOn($meteor, 'subscribe').and.returnValue($q.when(subHandle));
+
+      $subStateMachine
+        .state('r1', 'sub1', 'sub2')
+        .state('r2');
+
+      $subStateMachine.transition('r1');
+      $rootScope.$digest();
+      $subStateMachine.transition('r2');
+      $rootScope.$digest();
+
+      expect(stop.calls.count()).toBe(2);
+      expect($subStateMachine._currentSubs).toEqual({});
+
+      $subStateMachine.transition('r1');
+      $rootScope.$digest();
+      $subStateMachine.transition('r3');
+      $rootScope.$digest();
+
+      expect(stop.calls.count()).toBe(4);
+      expect($subStateMachine._currentSubs).toEqual({});
+
+    });
 
     xit("should rollback to previous subs on error");
     xit("should start subscriptions with autorun blocks");

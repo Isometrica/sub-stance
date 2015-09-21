@@ -22,14 +22,81 @@ function $subStateMachine($meteor, $q) {
   };
 
   return {
+
+    /**
+     * Current active subsctipions - their keys uniquely identify the
+     * subscription by their name and the parameters that they were
+     * inovked with.
+     *
+     * @private
+     * @var Object
+     */
     _currentSubs: {},
-    subStates: {},
+
+    /**
+     * State configuration for the machine. Keys are the route state names
+     * and values are arrays of configuration objects. A configuration object
+     * has a `name` (subscription name) and an array of `params` (route state
+     * parameters to take from the state and invoke the subscription with.)
+     *
+     * @private
+     * @var Object
+     */
+    _subStates: {},
+
+    /**
+     * Register a subscription state; chain these calls.
+     *
+     * @param   stateName   String
+     * @param   sub...      Strings | Objects
+     * @return  this
+     */
     state: function(stateName, sub) {
       var args = Array.prototype.slice.call(arguments);
       var subConfs = args.slice(1);
-      this.subStates[stateName] = _.map(subConfs, createStateConf);
+      this._subStates[stateName] = _.map(subConfs, createStateConf);
       return this;
     },
+
+    /**
+     * Transition to a new state.
+     *
+     * @param   stateName   String
+     * @param   stateParams Object
+     * @return  Promise     Resolved when all required subscriptions are
+     *          open.
+     */
+    transition: function(stateName, stateParams) {
+      var self = this;
+      var statePayloads = self._migrate(stateName, stateParams);
+      return $q.all(_.map(statePayloads, function(payload) {
+        return $meteor.subscribe.apply($meteor, payload.args).then(function(handle) {
+          self._currentSubs[payload.hashKey] = handle;
+        });
+      }));
+    },
+
+    /**
+     * Get the subscription configuration array for a given stateName
+     *
+     * @param   stateName String
+     * @return  Array
+     */
+    get: function(stateName) {
+      return this._subStates[stateName] || [];
+    },
+
+    /**
+     * Computes the subscription payloads required for the next state, stops
+     * the current subscriptions that aren't required for the next route and
+     * returns a set of payloads that should be processed for the transition
+     * to be complete.
+     *
+     * @private
+     * @param   nextName    String  Name of the next state
+     * @param   nextParams  String  Dictionary of state params
+     * @return  Array       Subscription payloads that must be processed
+     */
     _migrate: function(nextName, nextParams) {
       var self = this;
       var nextConfs = self.get(nextName);
@@ -59,6 +126,16 @@ function $subStateMachine($meteor, $q) {
       });
       return payloadDelta;
     },
+
+    /**
+     * Constructs a 'subscription payload' object for a state configuration
+     * object evaluated with a set of candidate state parameters.
+     *
+     * @private
+     * @param  conf             Object
+     * @param  candidateParams  Object
+     * @return Object { args: [..], hashKey: 'unqiue-key' }
+     */
     _constructPayload: function(conf, candidateParams) {
       var args = [conf.name].concat(_.map(conf.params, function(param) {
         return candidateParams[param];
@@ -67,19 +144,8 @@ function $subStateMachine($meteor, $q) {
         args: args,
         hashKey: args.join(','),
       };
-    },
-    transition: function(stateName, stateParams) {
-      var self = this;
-      var statePayloads = self._migrate(stateName, stateParams);
-      return $q.all(_.map(statePayloads, function(payload) {
-        return $meteor.subscribe.apply($meteor, payload.args).then(function(handle) {
-          self._currentSubs[payload.hashKey] = handle;
-        });
-      }));
-    },
-    get: function(stateName) {
-      return this.subStates[stateName];
     }
+
   };
 
 }
