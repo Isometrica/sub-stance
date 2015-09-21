@@ -57,7 +57,7 @@ function stateChangeListener($rootScope) {
 
     _.each(toState.resolve, function(resolve) {
       if (_.isArray(resolve)) {
-        resolve.splice(resolve.count - 2, 0, subResolveKey);
+        resolve.splice(resolve.length - 1, 0, subResolveKey);
       } else if (_.isFunction(resolve)) {
         if (!resolve.$inject) {
           resolve.$inject = [];

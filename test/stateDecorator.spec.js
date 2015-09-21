@@ -157,11 +157,14 @@ describe("$stateProvider", function() {
       function fnDep(dep1, dep2) {}
       fnDep.$inject = ['dep1', 'dep2'];
 
+      function arrDepFn() {}
+      var arrDep = ['dep1', 'dep2', arrDepFn];
+
       $stateProvider
         .state('a', {
           template: '<ui-view/>',
           resolve : {
-            arrayDep: ['dep1', 'dep2', function(dep1, dep2) {}],
+            arrDep: arrDep,
             fnDep: fnDep
           },
           data: {
@@ -172,7 +175,8 @@ describe("$stateProvider", function() {
       $state.go('a');
       $rootScope.$digest();
 
-      console.log($state.current.resolve);
+      expect(arrDep).toEqual(['dep1', 'dep2', '$__subs', arrDepFn]);
+      expect(fnDep.$inject).toEqual(['dep1', 'dep2', '$__subs']);
 
     });
 
