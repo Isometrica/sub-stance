@@ -226,6 +226,47 @@ describe("$subStateMachine", function() {
       });
     });
 
+    it("should destinguish between the same state names with different params", function() {
+
+      var stop = jasmine.createSpy('stop');
+      var subHandle = { stop: stop };
+      spyOn($meteor, 'subscribe').and.returnValue($q.when(subHandle));
+      $subStateMachine
+        .state('r1', {
+          name: 'sub1',
+          params: ['a', 'b', 'c']
+        }, {
+          name: 'sub2',
+          params: ['e', 'f', 'g']
+        });
+
+      $subStateMachine.transition('r1', {
+        a: 1,
+        b: 2,
+        c: 3,
+        e: 4,
+        f: 5,
+        g: 6
+      });
+      $rootScope.$digest();
+
+      $subStateMachine.transition('r1', {
+        a: 2,
+        b: 3,
+        c: 4,
+        e: 5,
+        f: 6,
+        g: 7
+      });
+      $rootScope.$digest();
+
+      expect($subStateMachine._currentSubs).toEqual({
+        'sub1,2,3,4': subHandle,
+        'sub2,5,6,7': subHandle
+      });
+
+    });
+
     it("should clear all subs on empty state conf", function() {
 
       var stop = jasmine.createSpy('stop');
