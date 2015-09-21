@@ -49,6 +49,7 @@ function decorateStateProvider($stateProvider, $rootScope) {
         }
       }
     }
+    console.log('Subs for route', state.name, state.data.$subs);
     return parentFn(state);
 
   }
@@ -80,6 +81,7 @@ function stateChangeListener($rootScope) {
     });
 
     toState.resolve[subResolveKey] = ['$subs', function($subs) {
+      console.log('Resolving ' + subResolveKey + ', ', toState.resolve);
       return $subs.transition(toState.name, toParams);
     }];
 

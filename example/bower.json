@@ -11,11 +11,16 @@
     "tests"
   ],
   "dependencies": {
-    "sub-stance": "https://github.com/SteveFortune/sub-stance.git"
+    "sub-stance": "../dist/sub-stance.js"
   },
   "overrides": {
     "angular": {
       "main": []
+    },
+    "sub-stance": {
+      "arch": [
+        "client"
+      ]
     }
   }
 }
