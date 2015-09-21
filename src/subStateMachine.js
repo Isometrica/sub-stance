@@ -134,7 +134,7 @@ function $subStateMachine($meteor, $q) {
      * @private
      * @param  conf             Object
      * @param  candidateParams  Object
-     * @return Object { args: [..], hashKey: 'unqiue-key' }
+     * @return Object { args: [..], hashKey: 'name,arg1,arg2..' }
      */
     _constructPayload: function(conf, candidateParams) {
       var args = [conf.name].concat(_.map(conf.params, function(param) {
