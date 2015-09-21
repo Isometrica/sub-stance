@@ -2,11 +2,12 @@
 describe("$subs", function() {
 
   'use strict';
-  var $subsProvider;
-  var $subs;
-  var $meteor;
-  var $q;
-  var $rootScope;
+  
+  var $subsProvider,
+      $subs,
+      $meteor,
+      $q,
+      $rootScope;
 
   beforeEach(module('isa.substance', function(_$subsProvider_) {
     $subsProvider = _$subsProvider_;

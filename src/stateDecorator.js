@@ -1,7 +1,8 @@
 
 angular
   .module('isa.substance')
-  .config(stateProviderDecorator);
+  .config(decorateStateProvider)
+  .run(stateChangeListener);
 
 // Approach 1:
 //
@@ -13,10 +14,12 @@ angular
 //
 // Note: https://github.com/angular-ui/ui-router/issues/1165 you need
 // resolve: {} to be able to append them in the event handler.
+//
+// Test this. If it works, all we need then is a service to actually create
+// the subscriptions based on $subs. We don't need a provider to configure
+// them !
 
 function decorateStateProvider($stateProvider, $rootScope) {
-
-  var subResolveKey = "$__subs";
 
   function dataDecorateFn(state, parentFn) {
 
@@ -26,16 +29,25 @@ function decorateStateProvider($stateProvider, $rootScope) {
         if (!state.data) {
           state.data = {};
         }
-        if (state.data.subs) {
+        if (state.data.$subs) {
           state.data.$subs = pData.$subs.concat(state.data.$subs);
         } else {
           state.data.$subs = pData.$subs;
         }
       }
     }
-    parentFn(state);
+    return parentFn(state);
 
   }
+
+  $stateProvider.decorator('data', dataDecorateFn);
+
+}
+decorateStateProvider.$inject = ['$stateProvider']
+
+function stateChangeListener($rootScope) {
+
+  var subResolveKey = "$__subs";
 
   function ensureSubs(e, toState, toParams, fromState, fromParams) {
 
@@ -60,11 +72,10 @@ function decorateStateProvider($stateProvider, $rootScope) {
 
   }
 
-  $stateProvider.decorate('data', dataDecorateFn);
   $rootScope.$on('$stateChangeStart', ensureSubs);
 
 }
-decorateStateProvider.$inject = ['$stateProvider']
+stateChangeListener.$inject = ['$rootScope'];
 
 // Approach 2:
 //
