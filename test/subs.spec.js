@@ -1,18 +1,18 @@
 
-describe("$subState", function() {
+describe("$subs", function() {
 
   'use strict';
-  var $subStateProvider;
-  var $subState;
+  var $subsProvider;
+  var $subs;
   var $meteor;
   var $q;
   var $rootScope;
 
-  beforeEach(module('isa.substance', function(_$subStateProvider_) {
-    $subStateProvider = _$subStateProvider_;
+  beforeEach(module('isa.substance', function(_$subsProvider_) {
+    $subsProvider = _$subsProvider_;
   }));
-  beforeEach(inject(function(_$subState_, _$meteor_, _$q_, _$rootScope_) {
-    $subState = _$subState_;
+  beforeEach(inject(function(_$subs_, _$meteor_, _$q_, _$rootScope_) {
+    $subs = _$subs_;
     $meteor = _$meteor_;
     $q = _$q_;
     $rootScope = _$rootScope_;
@@ -21,8 +21,8 @@ describe("$subState", function() {
   describe('.get', function() {
 
     it("should get array of subscription conf objects", function() {
-      $subStateProvider.state('routeName', 'subName', 'anotherSub', 'yetAnother');
-      expect($subStateProvider.get('routeName')).toEqual(jasmine.any(Array));
+      $subsProvider.state('routeName', 'subName', 'anotherSub', 'yetAnother');
+      expect($subsProvider.get('routeName')).toEqual(jasmine.any(Array));
     });
 
   });
@@ -30,8 +30,8 @@ describe("$subState", function() {
   describe(".state", function() {
 
     it("should register simple subscription conf", function() {
-      $subStateProvider.state('routeName', 'subName');
-      var subState = $subStateProvider.get('routeName');
+      $subsProvider.state('routeName', 'subName');
+      var subState = $subsProvider.get('routeName');
       expect(subState).toEqual([{
         name: 'subName',
         params: []
@@ -39,11 +39,11 @@ describe("$subState", function() {
     });
 
     it("should register subscription conf with params", function() {
-      $subStateProvider.state('routeName', {
+      $subsProvider.state('routeName', {
         name: 'subName',
         params: ['routeParam1', 'routeParam2']
       });
-      var subState = $subStateProvider.get('routeName');
+      var subState = $subsProvider.get('routeName');
       expect(subState).toEqual([{
         name: 'subName',
         params: ['routeParam1', 'routeParam2']
@@ -53,11 +53,11 @@ describe("$subState", function() {
     xit("should register subscription conf with autorun computation");
 
     it("should register array of subscription configurations", function() {
-      $subStateProvider.state('routeName', 'sub1', 'sub2', {
+      $subsProvider.state('routeName', 'sub1', 'sub2', {
         name: 'sub3',
         params: ['one', 'two']
       });
-      var states = $subStateProvider.get('routeName');
+      var states = $subsProvider.get('routeName');
       expect(states).toEqual([
         { name: 'sub1', params: [] },
         { name: 'sub2', params: [] },
@@ -66,7 +66,7 @@ describe("$subState", function() {
     });
 
     it("should return this", function() {
-      expect($subStateProvider.state('routeName')).toBe($subStateProvider);
+      expect($subsProvider.state('routeName')).toBe($subsProvider);
     });
 
   });
@@ -75,8 +75,8 @@ describe("$subState", function() {
 
     it("should return promise", function() {
 
-      $subStateProvider.state('routeName');
-      var pr = $subState.transition('routeName');
+      $subsProvider.state('routeName');
+      var pr = $subs.transition('routeName');
       expect(pr).toEqual(jasmine.any(Object));
       expect(pr.then).toEqual(jasmine.any(Function));
 
@@ -85,14 +85,14 @@ describe("$subState", function() {
     it("should start simple subscriptions", function() {
 
       spyOn($meteor, 'subscribe').and.returnValue($q.when({}));
-      $subStateProvider.state('routeName', 'sub1', 'sub2');
+      $subsProvider.state('routeName', 'sub1', 'sub2');
 
-      $subState.transition('routeName');
+      $subs.transition('routeName');
 
       expect($meteor.subscribe.calls.argsFor(0)).toEqual(['sub1']);
       expect($meteor.subscribe.calls.argsFor(1)).toEqual(['sub2']);
       $rootScope.$digest();
-      expect($subState._currentSubs).toEqual({
+      expect($subs._currentSubs).toEqual({
         'sub1': {},
         'sub2': {}
       });
@@ -102,7 +102,7 @@ describe("$subState", function() {
     it("should start subscriptions with parameters from route state", function() {
 
       spyOn($meteor, 'subscribe').and.returnValue($q.when({}));
-      $subStateProvider.state('routeName', {
+      $subsProvider.state('routeName', {
         name: 'sub',
         params: ['one', 'two', 'three']
       }, {
@@ -110,7 +110,7 @@ describe("$subState", function() {
         params: ['one', 'two']
       });
 
-      $subState.transition('routeName', {
+      $subs.transition('routeName', {
         one: 1,
         two: 2,
         three: 3
@@ -119,7 +119,7 @@ describe("$subState", function() {
       expect($meteor.subscribe.calls.argsFor(0)).toEqual(['sub', 1, 2, 3]);
       expect($meteor.subscribe.calls.argsFor(1)).toEqual(['sub', 1, 2]);
       $rootScope.$digest();
-      expect($subState._currentSubs).toEqual({
+      expect($subs._currentSubs).toEqual({
         'sub,1,2,3': {},
         'sub,1,2': {}
       });
@@ -131,7 +131,7 @@ describe("$subState", function() {
       var stop = jasmine.createSpy('stop');
       var subHandle = { stop: stop };
       spyOn($meteor, 'subscribe').and.returnValue($q.when(subHandle));
-      $subStateProvider
+      $subsProvider
         .state('r1', {
           name: 'sub1',
           params: ['a', 'b', 'c']
@@ -147,7 +147,7 @@ describe("$subState", function() {
           params: ['b']
         });
 
-      $subState.transition('r1', {
+      $subs.transition('r1', {
         a: 1,
         b: 2,
         c: 3,
@@ -156,7 +156,7 @@ describe("$subState", function() {
       });
       $rootScope.$digest();
 
-      $subState.transition('r2', {
+      $subs.transition('r2', {
         a: 'a',
         b: 'b',
         c: 'c'
@@ -165,7 +165,7 @@ describe("$subState", function() {
 
       // TODO: Assert stop was called on the first 2 subs not the second 2
       expect(stop.calls.count()).toBe(2);
-      expect($subState._currentSubs).toEqual({
+      expect($subs._currentSubs).toEqual({
         'sub1,a,b,c': subHandle,
         'sub3,b': subHandle
       });
@@ -177,7 +177,7 @@ describe("$subState", function() {
       var stop = jasmine.createSpy('stop');
       var subHandle = { stop: stop };
       spyOn($meteor, 'subscribe').and.returnValue($q.when(subHandle));
-      $subStateProvider
+      $subsProvider
         .state('r1', {
           name: 'sub1',
           params: ['a', 'b', 'c']
@@ -199,7 +199,7 @@ describe("$subState", function() {
           params: ['one']
         });
 
-      $subState.transition('r1', {
+      $subs.transition('r1', {
         a: 1,
         b: 2,
         c: 3,
@@ -209,7 +209,7 @@ describe("$subState", function() {
       });
       $rootScope.$digest();
 
-      $subState.transition('r2', {
+      $subs.transition('r2', {
         a: 4,
         b: 5,
         c: 6,
@@ -222,7 +222,7 @@ describe("$subState", function() {
       // TODO: Assert stop was called only destroyMe
       expect(stop.calls.count()).toBe(1);
       expect($meteor.subscribe.calls.count()).toBe(4);
-      expect($subState._currentSubs).toEqual({
+      expect($subs._currentSubs).toEqual({
         'sub1,1,2,3': subHandle,
         'sub2,4,5,6': subHandle,
         'replace,1': subHandle
@@ -234,7 +234,7 @@ describe("$subState", function() {
       var stop = jasmine.createSpy('stop');
       var subHandle = { stop: stop };
       spyOn($meteor, 'subscribe').and.returnValue($q.when(subHandle));
-      $subStateProvider
+      $subsProvider
         .state('r1', {
           name: 'sub1',
           params: ['a', 'b', 'c']
@@ -243,7 +243,7 @@ describe("$subState", function() {
           params: ['e', 'f', 'g']
         });
 
-      $subState.transition('r1', {
+      $subs.transition('r1', {
         a: 1,
         b: 2,
         c: 3,
@@ -253,7 +253,7 @@ describe("$subState", function() {
       });
       $rootScope.$digest();
 
-      $subState.transition('r1', {
+      $subs.transition('r1', {
         a: 2,
         b: 3,
         c: 4,
@@ -263,7 +263,7 @@ describe("$subState", function() {
       });
       $rootScope.$digest();
 
-      expect($subState._currentSubs).toEqual({
+      expect($subs._currentSubs).toEqual({
         'sub1,2,3,4': subHandle,
         'sub2,5,6,7': subHandle
       });
@@ -276,25 +276,25 @@ describe("$subState", function() {
       var subHandle = { stop: stop };
       spyOn($meteor, 'subscribe').and.returnValue($q.when(subHandle));
 
-      $subStateProvider
+      $subsProvider
         .state('r1', 'sub1', 'sub2')
         .state('r2');
 
-      $subState.transition('r1');
+      $subs.transition('r1');
       $rootScope.$digest();
-      $subState.transition('r2');
+      $subs.transition('r2');
       $rootScope.$digest();
 
       expect(stop.calls.count()).toBe(2);
-      expect($subState._currentSubs).toEqual({});
+      expect($subs._currentSubs).toEqual({});
 
-      $subState.transition('r1');
+      $subs.transition('r1');
       $rootScope.$digest();
-      $subState.transition('r3');
+      $subs.transition('r3');
       $rootScope.$digest();
 
       expect(stop.calls.count()).toBe(4);
-      expect($subState._currentSubs).toEqual({});
+      expect($subs._currentSubs).toEqual({});
 
     });
 

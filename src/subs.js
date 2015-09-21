@@ -1,9 +1,9 @@
 
 angular
   .module('isa.substance')
-  .provider('$subState', $subStateProvider);
+  .provider('$subs', $subsProvider);
 
-function $subStateProvider() {
+function $subsProvider() {
 
   var createStateConf = function(sub) {
     if (_.isArray(sub) || _.isFunction(sub)) {
@@ -61,7 +61,7 @@ function $subStateProvider() {
   };
   _.extend(this, builder);
 
-  function $subState($meteor, $q) {
+  function $subs($meteor, $q) {
 
     return {
 
@@ -154,7 +154,7 @@ function $subStateProvider() {
       }
     };
   }
-  $subState.$inject = ['$meteor', '$q'];
+  $subs.$inject = ['$meteor', '$q'];
 
-  this.$get = $subState;
+  this.$get = $subs;
 }
