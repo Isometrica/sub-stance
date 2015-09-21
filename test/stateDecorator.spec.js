@@ -1,5 +1,5 @@
 
-describe("$subs", function() {
+describe("$stateProvider", function() {
 
   'use strict';
 
@@ -15,7 +15,7 @@ describe("$subs", function() {
     $rootScope = _$rootScope_;
   }));
 
-  describe('.data', function() {
+  describe('decorator(data)', function() {
 
     it("should merge data.$subs from parents", function() {
 
@@ -130,6 +130,52 @@ describe("$subs", function() {
 
     });
 
-  })
+  });
+
+  describe("$stateChangeStart", function() {
+
+    it("should append sub transition to resolves", function() {
+
+      $stateProvider
+        .state('a', {
+          template: '<ui-view/>',
+          resolve : {},
+          data: {
+            $subs: ['sub1', 'sub2']
+          }
+        });
+
+      $state.go('a');
+      $rootScope.$digest();
+
+      expect($state.current.resolve['$__subs']).toEqual(jasmine.any(Array));
+
+    });
+
+    it("should introduce dependency on transition to all other resolves", function() {
+
+      function fnDep(dep1, dep2) {}
+      fnDep.$inject = ['dep1', 'dep2'];
+
+      $stateProvider
+        .state('a', {
+          template: '<ui-view/>',
+          resolve : {
+            arrayDep: ['dep1', 'dep2', function(dep1, dep2) {}],
+            fnDep: fnDep
+          },
+          data: {
+            $subs: ['sub1', 'sub2']
+          }
+        });
+
+      $state.go('a');
+      $rootScope.$digest();
+
+      console.log($state.current.resolve);
+
+    });
+
+  });
 
 });
