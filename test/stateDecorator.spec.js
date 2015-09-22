@@ -7,6 +7,7 @@ describe("$stateProvider", function() {
       $state,
       $injector,
       $subsMock,
+      $log,
       $rootScope;
 
   beforeEach(module('isa.substance', function(_$stateProvider_, $provide) {
@@ -14,10 +15,11 @@ describe("$stateProvider", function() {
     $subsMock = { transition: angular.noop };
     $provide.value('$subs', $subsMock);
   }));
-  beforeEach(inject(function(_$state_, _$rootScope_, _$injector_) {
+  beforeEach(inject(function(_$state_, _$rootScope_, _$injector_, _$log_) {
     $state = _$state_;
     $rootScope = _$rootScope_;
     $injector = _$injector_;
+    $log = _$log_;
   }));
 
   describe('decorator(data)', function() {
@@ -137,7 +139,7 @@ describe("$stateProvider", function() {
       $state.transitionTo('a');
       $rootScope.$digest();
 
-      expect($state.get('a').resolve.$__subs).toEqual(jasmine.any(Array));
+      expect($state.get('a').resolve.$__subs).toEqual(jasmine.any(Function));
 
     });
 
@@ -226,6 +228,27 @@ describe("$stateProvider", function() {
         { name: 'sub1', args: ['a'] },
         { name: 'sub2', args: ['b', 'a'] },
       ]]);
+
+    }));
+
+    it("should clear $subs if state does not conform to resolve block requirements", inject(function($q) {
+
+      spyOn($log, 'warn');
+      spyOn($subsMock, 'transition').and.returnValue($q.when({}));
+
+      $stateProvider
+        .state('a', {
+          template: '<ui-view/>',
+          data: {
+            $subs: ['sub', 'sub2']
+          }
+        });
+
+      $state.transitionTo('a');
+      $rootScope.$digest();
+
+      expect($log.warn.calls.count()).toBe(1);
+      expect($subsMock.transition.calls.argsFor(0)).toEqual([]);
 
     }));
 

@@ -75,7 +75,7 @@ function decorateStateProvider($stateProvider, $rootScope) {
 }
 decorateStateProvider.$inject = ['$stateProvider'];
 
-function stateChangeListener($rootScope, $log) {
+function stateChangeListener($rootScope, $subs, $log) {
 
   var subResolveKey = "$__subs";
 
@@ -99,7 +99,6 @@ function stateChangeListener($rootScope, $log) {
   function ensureSubs(e, toState, toParams, fromState, fromParams) {
 
     if (!toState.resolve) {
-      /// TODO Test coverage for this
       $log.warn(
         'No resolve table for ' + toState.name + '. You must at least add an ' +
         'empty object: .state({... resolve: {});'
@@ -108,10 +107,10 @@ function stateChangeListener($rootScope, $log) {
       return;
     }
 
-    toState.resolve[subResolveKey] = ['$subs', function($subs) {
+    toState.resolve[subResolveKey] = function($subs) {
       var payload = evaluatedConf(toState.data.$subs, toParams);
       return $subs.transition(payload);
-    }];
+    };
 
     _.each(toState.resolve, function(resolve, key) {
       if (key === subResolveKey) {
@@ -136,4 +135,4 @@ function stateChangeListener($rootScope, $log) {
   $rootScope.$on('$stateChangeStart', ensureSubs);
 
 }
-stateChangeListener.$inject = ['$rootScope', '$log'];
+stateChangeListener.$inject = ['$rootScope', '$subs', '$log'];
