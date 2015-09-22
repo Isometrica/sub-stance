@@ -85,7 +85,7 @@ function stateChangeListener($rootScope, $log) {
   function ensureSubs(e, toState, toParams, fromState, fromParams) {
 
     if (!toState.resolve) {
-      $log.error(
+      $log.warn(
         'No resolve table for ' + toState.name + '. You must at least add an ' +
         'empty object: .state({... resolve: {});'
       );

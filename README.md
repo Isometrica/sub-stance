@@ -2,6 +2,13 @@
 
 An angular.js service that creates and maintains Meteor.js subscriptions across state transitions.
 
+### Benefits
+
+- Increase stability of client-side isa codebase: subscriptions are managed in a consistent way.
+- Decrease boilerplate in client-side isa codebase (increase code health): just declare which subscriptions that you want for each route.
+- Isolate subscription management functionality: track down and finding bugs relating to subscriptions in once place.
+- Contributions to meteor community - marketing for Isometrica.
+
 ### Problem Domain
 
 - We have a complicated angular-meteor app, composed of many modules requiring a variety of meteor subscriptions.
@@ -108,15 +115,15 @@ Problems:
 
 ### Requirements
 
-- Define the subscriptions available within application states.
-- Allow arguments to be passed to subscription configuration.
+- Define the subscriptions available within application states. _DONE_
+- Allow arguments to be passed to subscription configuration. _DONE_
 - Allow these subscriptions to be defined in an autorun computation.
 - Expose an interface through which a component (service, controller, directive, etc.) can request a subscription.
-- Handle all subscription cleanup.
+- Handle all subscription cleanup. _DONE_
 - Only close / open new subscriptions when required. Consider:
 
   - Component A requires a subscription to S. Another component, B, has already requested a subscription to S. Through this interface, both A and B should receive the same subscription handle; only 1 subscription should ever be opened to S.
-  - Route A requires a set of subscriptions to be opened, one of which is S. Route B requires a set of subscriptions to be opened, one of which is also S. When the application transitions between the A and B states, a handle to S should never be closed and reopened.
+  - Route A requires a set of subscriptions to be opened, one of which is S. Route B requires a set of subscriptions to be opened, one of which is also S. When the application transitions between the A and B states, a handle to S should never be closed and reopened. _DONE_
 
 ### References
 
