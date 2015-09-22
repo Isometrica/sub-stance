@@ -47,6 +47,8 @@ describe("$asyncTransition", function() {
       expect(e.preventDefault.calls.count()).toBe(1);
     });
 
+    xit("should emit routing error if operation fails");
+
   });
 
 });

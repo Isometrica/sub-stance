@@ -123,119 +123,9 @@ describe("$stateProvider", function() {
 
   });
 
-  xdescribe("$stateChangeStart", function() {
+  describe("$stateChangeStart", function() {
 
-    it("should append sub transition to resolves", function() {
-
-      $stateProvider
-        .state('a', {
-          template: '<ui-view/>',
-          resolve : {},
-          data: {
-            $subs: ['sub1', 'sub2']
-          }
-        });
-
-      $state.transitionTo('a');
-      $rootScope.$digest();
-
-      expect($state.get('a').resolve.$__subs).toEqual(jasmine.any(Function));
-
-    });
-
-    xit("should introduce dependency on transition to all other resolves", function() {
-
-      function fnDep(dep1, dep2) {}
-      fnDep.$inject = ['dep1', 'dep2'];
-
-      function arrDepFn() {}
-      var arrDep = ['dep1', 'dep2', arrDepFn];
-
-      $stateProvider
-        .state('a', {
-          template: '<ui-view/>',
-          resolve : {
-            arrDep: arrDep,
-            fnDep: fnDep
-          },
-          data: {
-            $subs: ['sub1', 'sub2']
-          }
-        });
-
-      $state.transitionTo('a');
-      $rootScope.$digest();
-
-      expect(arrDep).toEqual(['dep1', 'dep2', '$__subs', arrDepFn]);
-      expect(fnDep.$inject).toEqual(['dep1', 'dep2', '$__subs']);
-
-    });
-
-    xit("should introduce dependency on transition to parent resolves", function() {
-
-      $stateProvider
-        .state('parent', {
-          template: '<ui-view/>',
-          abstract: true,
-          resolve : {
-            dep1: ['$meteor', function($meteor) {}],
-            dep2: ['$meteor', function($meteor) {}]
-          },
-          data: {
-            $subs: ['sub1', 'sub2']
-          }
-        })
-        .state('child', {
-          template: '<ui-view/>',
-          parent: 'parent',
-          resolve : {
-            dep3: ['$meteor', function($meteor) {}],
-            dep4: ['$meteor', function($meteor) {}]
-          },
-          data: {
-            $subs: ['sub3', 'sub4']
-          }
-        });
-
-      $state.transitionTo('child');
-      $rootScope.$digest();
-
-      var parentDeps = $state.get('parent').resolve;
-
-      expect(parentDeps.dep1).toEqual(jasmine.arrayContaining(['$meteor', '$__subs']));
-      expect(parentDeps.dep2).toEqual(jasmine.arrayContaining(['$meteor', '$__subs']));
-
-    });
-
-    xit("should not introduce dependency if already exists", function() {
-
-      function fnDep(dep1, dep2) {}
-      fnDep.$inject = ['dep1', 'dep2', '$__subs'];
-
-      function arrDepFn() {}
-      var arrDep = ['dep1', 'dep2', '$__subs', arrDepFn];
-
-      $stateProvider
-        .state('a', {
-          template: '<ui-view/>',
-          resolve : {
-            arrDep: arrDep,
-            fnDep: fnDep
-          },
-          data: {
-            $subs: ['sub1', 'sub2']
-          }
-        });
-
-      $state.transitionTo('a');
-      $rootScope.$digest();
-
-      expect(arrDep).toEqual(['dep1', 'dep2', '$__subs', arrDepFn]);
-      expect(fnDep.$inject).toEqual(['dep1', 'dep2', '$__subs']);
-
-    });
-
-    it("should substitue route parameters for $subs args", inject(function($q) {
+    it("should build $subs.transition args from state", inject(function($q) {
 
       spyOn($subsMock, 'transition').and.returnValue($q.when({}));
       $stateProvider
@@ -257,34 +147,10 @@ describe("$stateProvider", function() {
       });
       $rootScope.$digest();
 
-      var $__subs = $state.get('a').resolve.$__subs;
-      $injector.invoke($__subs);
-
       expect($subsMock.transition.calls.argsFor(0)).toEqual([[
         { name: 'sub1', args: ['a'] },
         { name: 'sub2', args: ['b', 'a'] },
       ]]);
-
-    }));
-
-    it("should clear $subs if state does not conform to resolve block requirements", inject(function($q) {
-
-      spyOn($log, 'warn');
-      spyOn($subsMock, 'transition').and.returnValue($q.when({}));
-
-      $stateProvider
-        .state('a', {
-          template: '<ui-view/>',
-          data: {
-            $subs: ['sub', 'sub2']
-          }
-        });
-
-      $state.transitionTo('a');
-      $rootScope.$digest();
-
-      expect($log.warn.calls.count()).toBe(1);
-      expect($subsMock.transition.calls.argsFor(0)).toEqual([]);
 
     }));
 
