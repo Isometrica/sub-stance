@@ -89,9 +89,7 @@ function evaluatedConf(confs, params) {
 function stateChangeListener($rootScope, $asyncTransition, $subs) {
   $rootScope.$on('$stateChangeStart', $asyncTransition(function(event, toState, toParams) {
     var payload = evaluatedConf(toState.data.$subs, toParams);
-    return $subs.transition(payload).then(function() {
-      console.log('- Sub transition complete.');
-    });
+    return $subs.transition(payload);
   }));
 }
 stateChangeListener.$inject = ['$rootScope', '$asyncTransition', '$subs'];
