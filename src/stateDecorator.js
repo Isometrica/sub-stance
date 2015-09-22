@@ -114,9 +114,12 @@ function stateChangeListener($rootScope, $subs, $log, $state) {
         resolve.$inject.push(subResolveKey);
       }
     });
+    console.log('- Ensured deps', toState.resolve);
     if (toState.parent) {
+      console.log('- Parent: ' + toState.parent);
       depTraverse($state.get(toState.parent));
     }
+    console.log('- Finished traverse');
   }
 
   function ensureSubs(e, toState, toParams, fromState, fromParams) {
