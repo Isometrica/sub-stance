@@ -52,6 +52,10 @@ function stateChangeListener($rootScope) {
 
   var subResolveKey = "$__subs";
 
+  function dependsOnSubs(dep) {
+    return ~dep.indexOf(subResolveKey);
+  }
+
   function ensureSubs(e, toState, toParams, fromState, fromParams) {
 
     if (!toState.resolve) {
@@ -60,12 +64,15 @@ function stateChangeListener($rootScope) {
 
     _.each(toState.resolve, function(resolve) {
       if (_.isArray(resolve)) {
-        resolve.splice(resolve.length - 1, 0, subResolveKey);
+        if (!dependsOnSubs(resolve)) {
+          resolve.splice(resolve.length - 1, 0, subResolveKey);
+        }
       } else if (_.isFunction(resolve)) {
         if (!resolve.$inject) {
           resolve.$inject = [];
+        } else if (!dependsOnSubs(resolve.$inject)) {
+          resolve.$inject.push(subResolveKey);
         }
-        resolve.$inject.push(subResolveKey);
       }
     });
 

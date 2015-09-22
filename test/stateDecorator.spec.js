@@ -37,10 +37,7 @@ describe("$stateProvider", function() {
           }
         });
 
-      $state.go('derived');
-      $rootScope.$digest();
-
-      expect($state.current.data.$subs).toEqual(['sub1', 'sub2', 'sub3', 'sub4']);
+      expect($state.get('derived').data.$subs).toEqual(['sub1', 'sub2', 'sub3', 'sub4']);
 
     });
 
@@ -62,10 +59,7 @@ describe("$stateProvider", function() {
           data: {}
         });
 
-      $state.go('derived');
-      $rootScope.$digest();
-
-      expect($state.current.data.$subs).toEqual(['sub1', 'sub2']);
+      expect($state.get('derived').data.$subs).toEqual(['sub1', 'sub2']);
 
     });
 
@@ -114,19 +108,9 @@ describe("$stateProvider", function() {
           }
         });
 
-      $state.go('sib1');
-      $rootScope.$digest();
-      expect($state.current.data.$subs).toEqual(['base1', 'base2', 'branch1_1', 'branch1_2', 'branch1_sib1_1', 'branch1_sib1_2']);
-
-      $state.go('sib2');
-      $rootScope.$digest();
-
-      expect($state.current.data.$subs).toEqual(['base1', 'base2', 'branch1_1', 'branch1_2', 'branch1_sib2_1', 'branch1_sib2_2']);
-
-      $state.go('uncle');
-      $rootScope.$digest();
-
-      expect($state.current.data.$subs).toEqual(['base1', 'base2', 'uncle']);
+      expect($state.get('sib1').data.$subs).toEqual(['base1', 'base2', 'branch1_1', 'branch1_2', 'branch1_sib1_1', 'branch1_sib1_2']);
+      expect($state.get('sib2').data.$subs).toEqual(['base1', 'base2', 'branch1_1', 'branch1_2', 'branch1_sib2_1', 'branch1_sib2_2']);
+      expect($state.get('uncle').data.$subs).toEqual(['base1', 'base2', 'uncle']);
 
     });
 
@@ -145,10 +129,10 @@ describe("$stateProvider", function() {
           }
         });
 
-      $state.go('a');
+      $state.transitionTo('a');
       $rootScope.$digest();
 
-      expect($state.current.resolve.$__subs).toEqual(jasmine.any(Array));
+      expect($state.get('a').resolve.$__subs).toEqual(jasmine.any(Array));
 
     });
 
@@ -172,7 +156,35 @@ describe("$stateProvider", function() {
           }
         });
 
-      $state.go('a');
+      $state.transitionTo('a');
+      $rootScope.$digest();
+
+      expect(arrDep).toEqual(['dep1', 'dep2', '$__subs', arrDepFn]);
+      expect(fnDep.$inject).toEqual(['dep1', 'dep2', '$__subs']);
+
+    });
+
+    it("should not introduce dependency if already exists", function() {
+
+      function fnDep(dep1, dep2) {}
+      fnDep.$inject = ['dep1', 'dep2', '$__subs'];
+
+      function arrDepFn() {}
+      var arrDep = ['dep1', 'dep2', '$__subs', arrDepFn];
+
+      $stateProvider
+        .state('a', {
+          template: '<ui-view/>',
+          resolve : {
+            arrDep: arrDep,
+            fnDep: fnDep
+          },
+          data: {
+            $subs: ['sub1', 'sub2']
+          }
+        });
+
+      $state.transitionTo('a');
       $rootScope.$digest();
 
       expect(arrDep).toEqual(['dep1', 'dep2', '$__subs', arrDepFn]);
