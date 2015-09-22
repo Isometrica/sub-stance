@@ -70,50 +70,28 @@ function decorateStateProvider($stateProvider, $rootScope) {
 
   }
   $stateProvider.decorator('data', dataDecorateFn);
-
 }
 decorateStateProvider.$inject = ['$stateProvider'];
 
-function stateChangeListener($rootScope, $subs, $log, $state) {
-
-  var subResolveKey = "$__subs";
-
-  function dependsOnSubs(dep) {
-    return ~dep.indexOf(subResolveKey);
-  }
-
-  function evaluatedConf(confs, params) {
-    return _.map(confs, function(conf) {
-      if (_.isObject(conf)) {
-        var cp = _.extend({}, conf);
-        cp.args = _.map(conf.args, function(argName) {
-          return params[argName];
-        });
-        return cp;
-      }
-      return conf;
-    });
-  }
-
-  function ensureSubs(e, toState, toParams, fromState, fromParams) {
-
-    if (!toState.resolve) {
-      $log.warn(
-        'No resolve table for ' + toState.name + '. You must at least add an ' +
-        'empty object: .state({... resolve: {});'
-      );
-      $subs.transition();
-      return;
+function evaluatedConf(confs, params) {
+  return _.map(confs, function(conf) {
+    if (_.isObject(conf)) {
+      var cp = _.extend({}, conf);
+      cp.args = _.map(conf.args, function(argName) {
+        return params[argName];
+      });
+      return cp;
     }
-
-    toState.resolve[subResolveKey] = function($subs) {
-      var payload = evaluatedConf(toState.data.$subs, toParams);
-      return $subs.transition(payload);
-    };
-
-  }
-
-  $rootScope.$on('$stateChangeStart', ensureSubs);
-
+    return conf;
+  });
 }
-stateChangeListener.$inject = ['$rootScope', '$subs', '$log', '$state'];
+
+function stateChangeListener($rootScope, $asyncTransition, $subs) {
+  $rootScope.$on('$stateChangeStart', $asyncTransition(function(event, toState, toParams) {
+    var payload = evaluatedConf(toState.data.$subs, toParams);
+    return $subs.transition(payload).then(function() {
+      console.log('- Sub transition complete.');
+    });
+  }));
+}
+stateChangeListener.$inject = ['$rootScope', '$asyncTransition', '$subs'];

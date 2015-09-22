@@ -14,6 +14,34 @@ angular
 
 angular
   .module('isa.substance')
+  .service('$asyncTransition', $asyncTransition);
+
+function $asyncTransition($rootScope, $state) {
+  return function(asyncFn) {
+    var lock;
+    return function(event, toState, toParams) {
+      console.log('-- Event');
+      if (lock) {
+        lock = false;
+        console.log('-- Unlocked');
+        return;
+      }
+      console.log('-- Preventing and exec');
+      event.preventDefault();
+      var args = Array.prototype.slice.call(arguments);
+      asyncFn.apply(null, args).then(function() {
+        console.log('-- Done, locked and transitioned.');
+        lock = true;
+        $state.go(toState, toParams);
+      });
+    };
+  };
+}
+$asyncTransition.$inject = ['$rootScope', '$state'];
+
+
+angular
+  .module('isa.substance')
   .config(decorateStateProvider)
   .run(stateChangeListener);
 
@@ -83,53 +111,31 @@ function decorateStateProvider($stateProvider, $rootScope) {
 
   }
   $stateProvider.decorator('data', dataDecorateFn);
-
 }
 decorateStateProvider.$inject = ['$stateProvider'];
 
-function stateChangeListener($rootScope, $subs, $log, $state) {
-
-  var subResolveKey = "$__subs";
-
-  function dependsOnSubs(dep) {
-    return ~dep.indexOf(subResolveKey);
-  }
-
-  function evaluatedConf(confs, params) {
-    return _.map(confs, function(conf) {
-      if (_.isObject(conf)) {
-        var cp = _.extend({}, conf);
-        cp.args = _.map(conf.args, function(argName) {
-          return params[argName];
-        });
-        return cp;
-      }
-      return conf;
-    });
-  }
-
-  function ensureSubs(e, toState, toParams, fromState, fromParams) {
-
-    if (!toState.resolve) {
-      $log.warn(
-        'No resolve table for ' + toState.name + '. You must at least add an ' +
-        'empty object: .state({... resolve: {});'
-      );
-      $subs.transition();
-      return;
+function evaluatedConf(confs, params) {
+  return _.map(confs, function(conf) {
+    if (_.isObject(conf)) {
+      var cp = _.extend({}, conf);
+      cp.args = _.map(conf.args, function(argName) {
+        return params[argName];
+      });
+      return cp;
     }
-
-    toState.resolve[subResolveKey] = function($subs) {
-      var payload = evaluatedConf(toState.data.$subs, toParams);
-      return $subs.transition(payload);
-    };
-
-  }
-
-  $rootScope.$on('$stateChangeStart', ensureSubs);
-
+    return conf;
+  });
 }
-stateChangeListener.$inject = ['$rootScope', '$subs', '$log', '$state'];
+
+function stateChangeListener($rootScope, $asyncTransition, $subs) {
+  $rootScope.$on('$stateChangeStart', $asyncTransition(function(event, toState, toParams) {
+    var payload = evaluatedConf(toState.data.$subs, toParams);
+    return $subs.transition(payload).then(function() {
+      console.log('- Sub transition complete.');
+    });
+  }));
+}
+stateChangeListener.$inject = ['$rootScope', '$asyncTransition', '$subs'];
 
 
 angular

@@ -123,7 +123,7 @@ describe("$stateProvider", function() {
 
   });
 
-  describe("$stateChangeStart", function() {
+  xdescribe("$stateChangeStart", function() {
 
     it("should append sub transition to resolves", function() {
 
