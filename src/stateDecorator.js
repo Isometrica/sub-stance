@@ -17,7 +17,7 @@ angular
  *       templateUrl: ...,
  *       url: '/book/shop/:filter/:page'
  *       resolve : {
- *         user: function($meteor) { return $meteor.requireUser(); }
+ *         user: function($meteor, $__subs) { return $meteor.requireUser(); }
  *       },
  *       data: {
  *         $subs: [
@@ -69,7 +69,6 @@ function decorateStateProvider($stateProvider, $rootScope) {
     return parentFn(state);
 
   }
-
   $stateProvider.decorator('data', dataDecorateFn);
 
 }
@@ -96,32 +95,6 @@ function stateChangeListener($rootScope, $subs, $log, $state) {
     });
   }
 
-  function depTraverse(toState) {
-    _.each(toState.resolve, function(resolve, key) {
-      if (key === subResolveKey) {
-        return;
-      }
-      if (_.isArray(resolve)) {
-        if (!dependsOnSubs(resolve)) {
-          resolve.splice(resolve.length - 1, 0, subResolveKey);
-        }
-      } else if (_.isFunction(resolve)) {
-        if (!resolve.$inject) {
-          resolve.$inject = [];
-        } else if (dependsOnSubs(resolve.$inject)) {
-          return;
-        }
-        resolve.$inject.push(subResolveKey);
-      }
-    });
-    console.log('- Ensured deps', toState.resolve);
-    if (toState.parent) {
-      console.log('- Parent: ' + toState.parent);
-      depTraverse($state.get(toState.parent));
-    }
-    console.log('- Finished traverse');
-  }
-
   function ensureSubs(e, toState, toParams, fromState, fromParams) {
 
     if (!toState.resolve) {
@@ -137,8 +110,6 @@ function stateChangeListener($rootScope, $subs, $log, $state) {
       var payload = evaluatedConf(toState.data.$subs, toParams);
       return $subs.transition(payload);
     };
-
-    depTraverse(toState);
 
   }
 

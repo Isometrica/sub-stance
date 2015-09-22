@@ -143,7 +143,7 @@ describe("$stateProvider", function() {
 
     });
 
-    it("should introduce dependency on transition to all other resolves", function() {
+    xit("should introduce dependency on transition to all other resolves", function() {
 
       function fnDep(dep1, dep2) {}
       fnDep.$inject = ['dep1', 'dep2'];
@@ -171,7 +171,7 @@ describe("$stateProvider", function() {
 
     });
 
-    it("should introduce dependency on transition to parent resolves", function() {
+    xit("should introduce dependency on transition to parent resolves", function() {
 
       $stateProvider
         .state('parent', {
@@ -207,7 +207,7 @@ describe("$stateProvider", function() {
 
     });
 
-    it("should not introduce dependency if already exists", function() {
+    xit("should not introduce dependency if already exists", function() {
 
       function fnDep(dep1, dep2) {}
       fnDep.$inject = ['dep1', 'dep2', '$__subs'];
