@@ -6,44 +6,33 @@ angular
 
 /**
  * @description
- * Decorates `$stateProvider`, allowing you to define the subscriptions
- * requires for each application state.
+ * Decorates `$stateProvider`, allowing you to define which subscriptions
+ * are required for each application state.
  *
  * @example
  *
  * ```Javascript
  *  $stateProvider
- *     .state('bookShop', {
- *       templateUrl: ...,
- *       url: '/book/shop/:filter/:page'
- *       resolve : {
- *         user: function($meteor, $__subs) { return $meteor.requireUser(); }
- *       },
- *       data: {
- *         $subs: [
- *            { name: 'books', args: ['filter', 'page'] },
- *            'favouritedBooks'
- *          ]
- *       }
- *     });
+ *    .state('bookShop', {
+ *      templateUrl: ...,
+ *      url: '/book/shop/:filter/:page'
+ *      data: {
+ *        $subs: [
+ *          { name: 'books', args: ['filter', 'page'] },
+ *          'favouritedBooks'
+ *        ]
+ *      },
+ *    });
  * ```
  *
- * _How does it work?_
+ * **How does it work?**
  *
  * Decoration happens in 2 parts:
  *
- * - Registering a 'data' decorator with the `$stateProvider`. The ensures
+ * - Registering a 'data' decorator with the `$stateProvider`. This ensures
  *   that `$subs` are merged correctly with their parent states' `$subs`.
- * - Listening to `$stateChangeStart` on the route scope, and appending
- *   a hidden dependency to the `resolve` object to block until the underlying
- *   `$subs.transition` is complete. We also guarentee that other dependencies
- *   are resolved _after_ the subscriptions by modifying their recipies.
- *
- * @see
- *
- * - Appending resolves: https://github.com/angular-ui/ui-router/issues/1278
- * - More on appending resolves: https://github.com/angular-ui/ui-router/issues/1165
- * - ui.router's $transition$: https://github.com/angular-ui/ui-router/issues/1257
+ * - Listening to `$stateChangeStart` on the route scope, and deffering
+ *   the event until the $subs have been transitioned (uses `$asyncTransition`).
  *
  * @copyright Isometrica
  * @author Stephen Fortune
