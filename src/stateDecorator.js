@@ -70,9 +70,10 @@ function stateChangeListener($rootScope) {
       } else if (_.isFunction(resolve)) {
         if (!resolve.$inject) {
           resolve.$inject = [];
-        } else if (!dependsOnSubs(resolve.$inject)) {
-          resolve.$inject.push(subResolveKey);
+        } else if (dependsOnSubs(resolve.$inject)) {
+          return;
         }
+        resolve.$inject.push(subResolveKey);
       }
     });
 
