@@ -5,14 +5,19 @@ describe("$stateProvider", function() {
 
   var $stateProvider,
       $state,
+      $injector,
+      $subsMock,
       $rootScope;
 
-  beforeEach(module('isa.substance', function(_$stateProvider_) {
+  beforeEach(module('isa.substance', function(_$stateProvider_, $provide) {
     $stateProvider = _$stateProvider_;
+    $subsMock = { transition: angular.noop };
+    $provide.value('$subs', $subsMock);
   }));
-  beforeEach(inject(function(_$state_, _$rootScope_) {
+  beforeEach(inject(function(_$state_, _$rootScope_, _$injector_) {
     $state = _$state_;
     $rootScope = _$rootScope_;
+    $injector = _$injector_;
   }));
 
   describe('decorator(data)', function() {
@@ -191,6 +196,38 @@ describe("$stateProvider", function() {
       expect(fnDep.$inject).toEqual(['dep1', 'dep2', '$__subs']);
 
     });
+
+    it("should substitue route parameters for $subs args", inject(function($q) {
+
+      spyOn($subsMock, 'transition').and.returnValue($q.when({}));
+      $stateProvider
+        .state('a', {
+          template: '<ui-view/>',
+          url: '/:param1/:param2',
+          resolve : {},
+          data: {
+            $subs: [
+              { name: 'sub1', args: ['param1'] },
+              { name: 'sub2', args: ['param2', 'param1'] },
+            ]
+          }
+        });
+
+      $state.transitionTo('a', {
+        param1: 'a',
+        param2: 'b'
+      });
+      $rootScope.$digest();
+
+      var $__subs = $state.get('a').resolve.$__subs;
+      $injector.invoke($__subs);
+
+      expect($subsMock.transition.calls.argsFor(0)).toEqual([[
+        { name: 'sub1', args: ['a'] },
+        { name: 'sub2', args: ['b', 'a'] },
+      ]]);
+
+    }));
 
   });
 

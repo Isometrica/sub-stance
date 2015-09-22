@@ -56,6 +56,19 @@ function stateChangeListener($rootScope) {
     return ~dep.indexOf(subResolveKey);
   }
 
+  function evaluatedConf(confs, params) {
+    return _.map(confs, function(conf) {
+      if (_.isObject(conf)) {
+        var cp = _.extend({}, conf);
+        cp.args = _.map(conf.args, function(argName) {
+          return params[argName];
+        });
+        return cp;
+      }
+      return conf;
+    });
+  }
+
   function ensureSubs(e, toState, toParams, fromState, fromParams) {
 
     if (!toState.resolve) {
@@ -63,7 +76,8 @@ function stateChangeListener($rootScope) {
     }
 
     toState.resolve[subResolveKey] = ['$subs', function($subs) {
-      return $subs.transition(toState.data.$subs);
+      var payload = evaluatedConf(toState.data.$subs, toParams);
+      return $subs.transition(payload);
     }];
 
     _.each(toState.resolve, function(resolve, key) {
