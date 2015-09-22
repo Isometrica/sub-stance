@@ -16,6 +16,9 @@ angular
  * async op has finished, faking lockstep. This occurs before we hit
  * the resolves and after the required subscriptions are openned.
  *
+ * If the transition fails, an `$asyncTransitionError` will be
+ * broadcasted on the `$rootScope` with the error.
+ *
  * @see https://github.com/angular-ui/ui-router/issues/1257
  * @see https://github.com/angular-ui/ui-router/issues/1278
  * @see https://github.com/angular-ui/ui-router/issues/1165
@@ -33,10 +36,18 @@ function $asyncTransition($rootScope, $state) {
       }
       event.preventDefault();
       var args = Array.prototype.slice.call(arguments);
-      asyncFn.apply(null, args).then(function() {
-        lock = true;
-        $state.go(toState, toParams);
-      });
+      asyncFn.apply(null, args)
+        .then(function() {
+          $state.transitionTo(toState, toParams);
+        })
+        .catch(function(error) {
+          args.unshift('$asyncTransitionError');
+          args.push(error);
+          $rootScope.$broadcast.apply($rootScope, args);
+        })
+        .finally(function() {
+          lock = true;
+        });
     };
   };
 }

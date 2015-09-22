@@ -16,24 +16,51 @@ angular
   .module('isa.substance')
   .service('$asyncTransition', $asyncTransition);
 
+/**
+ * @description
+ * Works around ui-router's lack of support for deffering state
+ * transitions in an event listener.
+ *
+ * We tried a couple of approaches, including dynamically appending
+ * resolves to the states in '$stateChangeStart', all of which
+ * came up short due to the way resolves are handled by $stateProvider.
+ * Reverted to an ugly, good-enough solution that prevents the event
+ * from being processed and re-calles `$state.transitionTo` when the
+ * async op has finished, faking lockstep. This occurs before we hit
+ * the resolves and after the required subscriptions are openned.
+ *
+ * If the transition fails, an `$asyncTransitionError` will be
+ * broadcasted on the `$rootScope` with the error.
+ *
+ * @see https://github.com/angular-ui/ui-router/issues/1257
+ * @see https://github.com/angular-ui/ui-router/issues/1278
+ * @see https://github.com/angular-ui/ui-router/issues/1165
+ *
+ * @copyright Isometrica
+ * @author Stephen Fortune
+ */
 function $asyncTransition($rootScope, $state) {
   return function(asyncFn) {
     var lock;
     return function(event, toState, toParams) {
-      console.log('-- Event');
       if (lock) {
         lock = false;
-        console.log('-- Unlocked');
         return;
       }
-      console.log('-- Preventing and exec');
       event.preventDefault();
       var args = Array.prototype.slice.call(arguments);
-      asyncFn.apply(null, args).then(function() {
-        console.log('-- Done, locked and transitioned.');
-        lock = true;
-        $state.go(toState, toParams);
-      });
+      asyncFn.apply(null, args)
+        .then(function() {
+          $state.transitionTo(toState, toParams);
+        })
+        .catch(function(error) {
+          args.unshift('$asyncTransitionError');
+          args.push(error);
+          $rootScope.$broadcast.apply($rootScope, args);
+        })
+        .finally(function() {
+          lock = true;
+        });
     };
   };
 }
@@ -47,44 +74,33 @@ angular
 
 /**
  * @description
- * Decorates `$stateProvider`, allowing you to define the subscriptions
- * requires for each application state.
+ * Decorates `$stateProvider`, allowing you to define which subscriptions
+ * are required for each application state.
  *
  * @example
  *
  * ```Javascript
  *  $stateProvider
- *     .state('bookShop', {
- *       templateUrl: ...,
- *       url: '/book/shop/:filter/:page'
- *       resolve : {
- *         user: function($meteor, $__subs) { return $meteor.requireUser(); }
- *       },
- *       data: {
- *         $subs: [
- *            { name: 'books', args: ['filter', 'page'] },
- *            'favouritedBooks'
- *          ]
- *       }
- *     });
+ *    .state('bookShop', {
+ *      templateUrl: ...,
+ *      url: '/book/shop/:filter/:page'
+ *      data: {
+ *        $subs: [
+ *          { name: 'books', args: ['filter', 'page'] },
+ *          'favouritedBooks'
+ *        ]
+ *      },
+ *    });
  * ```
  *
- * _How does it work?_
+ * **How does it work?**
  *
  * Decoration happens in 2 parts:
  *
- * - Registering a 'data' decorator with the `$stateProvider`. The ensures
+ * - Registering a 'data' decorator with the `$stateProvider`. This ensures
  *   that `$subs` are merged correctly with their parent states' `$subs`.
- * - Listening to `$stateChangeStart` on the route scope, and appending
- *   a hidden dependency to the `resolve` object to block until the underlying
- *   `$subs.transition` is complete. We also guarentee that other dependencies
- *   are resolved _after_ the subscriptions by modifying their recipies.
- *
- * @see
- *
- * - Appending resolves: https://github.com/angular-ui/ui-router/issues/1278
- * - More on appending resolves: https://github.com/angular-ui/ui-router/issues/1165
- * - ui.router's $transition$: https://github.com/angular-ui/ui-router/issues/1257
+ * - Listening to `$stateChangeStart` on the route scope, and deffering
+ *   the event until the $subs have been transitioned (uses `$asyncTransition`).
  *
  * @copyright Isometrica
  * @author Stephen Fortune
@@ -130,9 +146,7 @@ function evaluatedConf(confs, params) {
 function stateChangeListener($rootScope, $asyncTransition, $subs) {
   $rootScope.$on('$stateChangeStart', $asyncTransition(function(event, toState, toParams) {
     var payload = evaluatedConf(toState.data.$subs, toParams);
-    return $subs.transition(payload).then(function() {
-      console.log('- Sub transition complete.');
-    });
+    return $subs.transition(payload);
   }));
 }
 stateChangeListener.$inject = ['$rootScope', '$asyncTransition', '$subs'];
