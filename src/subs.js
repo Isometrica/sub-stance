@@ -7,10 +7,7 @@ function $subs($meteor, $q) {
 
   function dedubePayloads(payloads) {
     return _.uniq(payloads, function(payload) {
-      if (_.isObject(payload)) {
-        return payload.hashKey;
-      }
-      return payload;
+      return payload.hashKey;
     });
   }
 
@@ -49,9 +46,7 @@ function $subs($meteor, $q) {
      *          open.
      */
     transition: function(payloads) {
-      var self = this;
-      var processed = payloads;
-      processed = serializePayloads(payloads);
+      var self = this, processed = serializePayloads(payloads);
       processed = dedubePayloads(processed);
       var pendingPayloads = self._migrate(processed);
       return $q.all(_.map(pendingPayloads, function(payload) {
