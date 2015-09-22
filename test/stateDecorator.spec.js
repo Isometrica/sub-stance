@@ -171,6 +171,42 @@ describe("$stateProvider", function() {
 
     });
 
+    it("should introduce dependency on transition to parent resolves", function() {
+
+      $stateProvider
+        .state('parent', {
+          template: '<ui-view/>',
+          abstract: true,
+          resolve : {
+            dep1: ['$meteor', function($meteor) {}],
+            dep2: ['$meteor', function($meteor) {}]
+          },
+          data: {
+            $subs: ['sub1', 'sub2']
+          }
+        })
+        .state('child', {
+          template: '<ui-view/>',
+          parent: 'parent',
+          resolve : {
+            dep3: ['$meteor', function($meteor) {}],
+            dep4: ['$meteor', function($meteor) {}]
+          },
+          data: {
+            $subs: ['sub3', 'sub4']
+          }
+        });
+
+      $state.transitionTo('child');
+      $rootScope.$digest();
+
+      var parentDeps = $state.get('parent').resolve;
+
+      expect(parentDeps.dep1).toEqual(jasmine.arrayContaining(['$meteor', '$__subs']));
+      expect(parentDeps.dep2).toEqual(jasmine.arrayContaining(['$meteor', '$__subs']));
+
+    });
+
     it("should not introduce dependency if already exists", function() {
 
       function fnDep(dep1, dep2) {}

@@ -75,7 +75,7 @@ function decorateStateProvider($stateProvider, $rootScope) {
 }
 decorateStateProvider.$inject = ['$stateProvider'];
 
-function stateChangeListener($rootScope, $subs, $log) {
+function stateChangeListener($rootScope, $subs, $log, $state) {
 
   var subResolveKey = "$__subs";
 
@@ -96,22 +96,7 @@ function stateChangeListener($rootScope, $subs, $log) {
     });
   }
 
-  function ensureSubs(e, toState, toParams, fromState, fromParams) {
-
-    if (!toState.resolve) {
-      $log.warn(
-        'No resolve table for ' + toState.name + '. You must at least add an ' +
-        'empty object: .state({... resolve: {});'
-      );
-      $subs.transition();
-      return;
-    }
-
-    toState.resolve[subResolveKey] = function($subs) {
-      var payload = evaluatedConf(toState.data.$subs, toParams);
-      return $subs.transition(payload);
-    };
-
+  function depTraverse(toState) {
     _.each(toState.resolve, function(resolve, key) {
       if (key === subResolveKey) {
         return;
@@ -129,10 +114,32 @@ function stateChangeListener($rootScope, $subs, $log) {
         resolve.$inject.push(subResolveKey);
       }
     });
+    if (toState.parent) {
+      depTraverse($state.get(toState.parent));
+    }
+  }
+
+  function ensureSubs(e, toState, toParams, fromState, fromParams) {
+
+    if (!toState.resolve) {
+      $log.warn(
+        'No resolve table for ' + toState.name + '. You must at least add an ' +
+        'empty object: .state({... resolve: {});'
+      );
+      $subs.transition();
+      return;
+    }
+
+    toState.resolve[subResolveKey] = function($subs) {
+      var payload = evaluatedConf(toState.data.$subs, toParams);
+      return $subs.transition(payload);
+    };
+
+    depTraverse(toState);
 
   }
 
   $rootScope.$on('$stateChangeStart', ensureSubs);
 
 }
-stateChangeListener.$inject = ['$rootScope', '$subs', '$log'];
+stateChangeListener.$inject = ['$rootScope', '$subs', '$log', '$state'];
