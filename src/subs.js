@@ -3,6 +3,15 @@ angular
   .module('isa.substance')
   .service('$subs', $subs);
 
+/**
+ * @description
+ * Singleton service holding that state of the application's subscriptions.
+ * Transitioning to a new state will teardown subscriptions that are no longer
+ * required a spin up new ones.
+ *
+ * @copyright Isometrica
+ * @author Stephen Fortune
+ */
 function $subs($meteor, $q) {
 
   function dedubePayloads(payloads) {

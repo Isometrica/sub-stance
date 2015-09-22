@@ -4,23 +4,50 @@ angular
   .config(decorateStateProvider)
   .run(stateChangeListener);
 
-// Approach 1:
-//
-// Decoration:
-// - Decorate builder's data function to merge the subs arrays with parents
-// Trigger transitions:
-// - In $stateChangeStart, append transition recipie to resolves.
-// - Also ensure that other resolves come after it, i.e. depend on it
-//
-// Note:
-// - https://github.com/angular-ui/ui-router/issues/1165
-// - https://github.com/angular-ui/ui-router/issues/1278
-// .. looks like you should add a default resolve: {} to be able to append
-// them in the event handler.
-//
-// Test this. If it works, all we need then is a service to actually create
-// the subscriptions based on $subs. We don't need a provider to configure
-// them !
+/**
+ * @description
+ * Decorates `$stateProvider`, allowing you to define the subscriptions
+ * requires for each application state.
+ *
+ * @example
+ *
+ * ```Javascript
+ *  $stateProvider
+ *     .state('bookShop', {
+ *       templateUrl: ...,
+ *       url: '/book/shop/:filter/:page'
+ *       resolve : {
+ *         user: function($meteor) { return $meteor.requireUser(); }
+ *       },
+ *       data: {
+ *         $subs: [
+ *            { name: 'books', args: ['filter', 'page'] },
+ *            'favouritedBooks'
+ *          ]
+ *       }
+ *     });
+ * ```
+ *
+ * _How does it work?_
+ *
+ * Decoration happens in 2 parts:
+ *
+ * - Registering a 'data' decorator with the `$stateProvider`. The ensures
+ *   that `$subs` are merged correctly with their parent states' `$subs`.
+ * - Listening to `$stateChangeStart` on the route scope, and appending
+ *   a hidden dependency to the `resolve` object to block until the underlying
+ *   `$subs.transition` is complete. We also guarentee that other dependencies
+ *   are resolved _after_ the subscriptions by modifying their recipies.
+ *
+ * @see
+ *
+ * - Appending resolves: https://github.com/angular-ui/ui-router/issues/1278
+ * - More on appending resolves: https://github.com/angular-ui/ui-router/issues/1165
+ * - ui.router's $transition$: https://github.com/angular-ui/ui-router/issues/1257
+ *
+ * @copyright Isometrica
+ * @author Stephen Fortune
+ */
 
 function decorateStateProvider($stateProvider, $rootScope) {
 
@@ -72,10 +99,12 @@ function stateChangeListener($rootScope, $log) {
   function ensureSubs(e, toState, toParams, fromState, fromParams) {
 
     if (!toState.resolve) {
+      /// TODO Test coverage for this
       $log.warn(
         'No resolve table for ' + toState.name + '. You must at least add an ' +
         'empty object: .state({... resolve: {});'
       );
+      $subs.transition();
       return;
     }
 
@@ -108,9 +137,3 @@ function stateChangeListener($rootScope, $log) {
 
 }
 stateChangeListener.$inject = ['$rootScope', '$log'];
-
-// Approach 2:
-//
-// - Wrap $stateProvider.state
-// - Add add the resolves in there
-// - How do we guarentee merge sub conf with parent?
