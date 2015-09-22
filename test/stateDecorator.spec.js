@@ -62,10 +62,10 @@ describe("$stateProvider", function() {
           data: {}
         });
 
-        $state.go('derived');
-        $rootScope.$digest();
+      $state.go('derived');
+      $rootScope.$digest();
 
-        expect($state.current.data.$subs).toEqual(['sub1', 'sub2']);
+      expect($state.current.data.$subs).toEqual(['sub1', 'sub2']);
 
     });
 
@@ -114,19 +114,19 @@ describe("$stateProvider", function() {
           }
         });
 
-        $state.go('sib1');
-        $rootScope.$digest();
-        expect($state.current.data.$subs).toEqual(['base1', 'base2', 'branch1_1', 'branch1_2', 'branch1_sib1_1', 'branch1_sib1_2']);
+      $state.go('sib1');
+      $rootScope.$digest();
+      expect($state.current.data.$subs).toEqual(['base1', 'base2', 'branch1_1', 'branch1_2', 'branch1_sib1_1', 'branch1_sib1_2']);
 
-        $state.go('sib2');
-        $rootScope.$digest();
+      $state.go('sib2');
+      $rootScope.$digest();
 
-        expect($state.current.data.$subs).toEqual(['base1', 'base2', 'branch1_1', 'branch1_2', 'branch1_sib2_1', 'branch1_sib2_2']);
+      expect($state.current.data.$subs).toEqual(['base1', 'base2', 'branch1_1', 'branch1_2', 'branch1_sib2_1', 'branch1_sib2_2']);
 
-        $state.go('uncle');
-        $rootScope.$digest();
+      $state.go('uncle');
+      $rootScope.$digest();
 
-        expect($state.current.data.$subs).toEqual(['base1', 'base2', 'uncle']);
+      expect($state.current.data.$subs).toEqual(['base1', 'base2', 'uncle']);
 
     });
 

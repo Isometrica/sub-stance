@@ -70,7 +70,7 @@ function stateChangeListener($rootScope) {
     });
 
     toState.resolve[subResolveKey] = ['$subs', function($subs) {
-      return $subs.transition(toState.name, toParams);
+      return $subs.transition(toState.data.$subs);
     }];
 
   }
