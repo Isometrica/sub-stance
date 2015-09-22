@@ -62,7 +62,14 @@ function stateChangeListener($rootScope) {
       throw new Error("No resolve table.");
     }
 
-    _.each(toState.resolve, function(resolve) {
+    toState.resolve[subResolveKey] = ['$subs', function($subs) {
+      return $subs.transition(toState.data.$subs);
+    }];
+
+    _.each(toState.resolve, function(resolve, key) {
+      if (key === subResolveKey) {
+        return;
+      }
       if (_.isArray(resolve)) {
         if (!dependsOnSubs(resolve)) {
           resolve.splice(resolve.length - 1, 0, subResolveKey);
@@ -76,10 +83,6 @@ function stateChangeListener($rootScope) {
         resolve.$inject.push(subResolveKey);
       }
     });
-
-    toState.resolve[subResolveKey] = ['$subs', function($subs) {
-      return $subs.transition(toState.data.$subs);
-    }];
 
   }
 
