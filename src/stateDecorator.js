@@ -48,7 +48,7 @@ function decorateStateProvider($stateProvider, $rootScope) {
 }
 decorateStateProvider.$inject = ['$stateProvider'];
 
-function stateChangeListener($rootScope) {
+function stateChangeListener($rootScope, $log) {
 
   var subResolveKey = "$__subs";
 
@@ -72,7 +72,11 @@ function stateChangeListener($rootScope) {
   function ensureSubs(e, toState, toParams, fromState, fromParams) {
 
     if (!toState.resolve) {
-      throw new Error("No resolve table.");
+      $log.warn(
+        'No resolve table for ' + toState.name + '. You must at least add an ' +
+        'empty object: .state({... resolve: {});'
+      );
+      return;
     }
 
     toState.resolve[subResolveKey] = ['$subs', function($subs) {
@@ -103,7 +107,7 @@ function stateChangeListener($rootScope) {
   $rootScope.$on('$stateChangeStart', ensureSubs);
 
 }
-stateChangeListener.$inject = ['$rootScope'];
+stateChangeListener.$inject = ['$rootScope', '$log'];
 
 // Approach 2:
 //

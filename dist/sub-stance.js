@@ -25,8 +25,11 @@ angular
 // - In $stateChangeStart, append transition recipie to resolves.
 // - Also ensure that other resolves come after it, i.e. depend on it
 //
-// Note: https://github.com/angular-ui/ui-router/issues/1165 you need
-// resolve: {} to be able to append them in the event handler.
+// Note:
+// - https://github.com/angular-ui/ui-router/issues/1165
+// - https://github.com/angular-ui/ui-router/issues/1278
+// .. looks like you should add a default resolve: {} to be able to append
+// them in the event handler.
 //
 // Test this. If it works, all we need then is a service to actually create
 // the subscriptions based on $subs. We don't need a provider to configure
@@ -49,7 +52,6 @@ function decorateStateProvider($stateProvider, $rootScope) {
         }
       }
     }
-    console.log('Subs for route', state.name, state.data.$subs);
     return parentFn(state);
 
   }
@@ -59,38 +61,66 @@ function decorateStateProvider($stateProvider, $rootScope) {
 }
 decorateStateProvider.$inject = ['$stateProvider'];
 
-function stateChangeListener($rootScope) {
+function stateChangeListener($rootScope, $log) {
 
   var subResolveKey = "$__subs";
+
+  function dependsOnSubs(dep) {
+    return ~dep.indexOf(subResolveKey);
+  }
+
+  function evaluatedConf(confs, params) {
+    return _.map(confs, function(conf) {
+      if (_.isObject(conf)) {
+        var cp = _.extend({}, conf);
+        cp.args = _.map(conf.args, function(argName) {
+          return params[argName];
+        });
+        return cp;
+      }
+      return conf;
+    });
+  }
 
   function ensureSubs(e, toState, toParams, fromState, fromParams) {
 
     if (!toState.resolve) {
-      throw new Error("No resolve table.");
+      $log.error(
+        'No resolve table for ' + toState.name + '. You must at least add an ' +
+        'empty object: .state({... resolve: {});'
+      );
+      return;
     }
 
-    _.each(toState.resolve, function(resolve) {
+    toState.resolve[subResolveKey] = ['$subs', function($subs) {
+      var payload = evaluatedConf(toState.data.$subs, toParams);
+      return $subs.transition(payload);
+    }];
+
+    _.each(toState.resolve, function(resolve, key) {
+      if (key === subResolveKey) {
+        return;
+      }
       if (_.isArray(resolve)) {
-        resolve.splice(resolve.length - 1, 0, subResolveKey);
+        if (!dependsOnSubs(resolve)) {
+          resolve.splice(resolve.length - 1, 0, subResolveKey);
+        }
       } else if (_.isFunction(resolve)) {
         if (!resolve.$inject) {
           resolve.$inject = [];
+        } else if (dependsOnSubs(resolve.$inject)) {
+          return;
         }
         resolve.$inject.push(subResolveKey);
       }
     });
-
-    toState.resolve[subResolveKey] = ['$subs', function($subs) {
-      console.log('Resolving ' + subResolveKey + ', ', toState.resolve);
-      return $subs.transition(toState.name, toParams);
-    }];
 
   }
 
   $rootScope.$on('$stateChangeStart', ensureSubs);
 
 }
-stateChangeListener.$inject = ['$rootScope'];
+stateChangeListener.$inject = ['$rootScope', '$log'];
 
 // Approach 2:
 //
@@ -101,161 +131,92 @@ stateChangeListener.$inject = ['$rootScope'];
 
 angular
   .module('isa.substance')
-  .provider('$subs', $subsProvider);
+  .service('$subs', $subs);
 
-function $subsProvider() {
+function $subs($meteor, $q) {
 
-  var createStateConf = function(sub) {
-    if (_.isArray(sub) || _.isFunction(sub)) {
-      return { autorun: sub };
-    } else if (_.isObject(sub)) {
+  function dedubePayloads(payloads) {
+    return _.uniq(payloads, function(payload) {
+      return payload.hashKey;
+    });
+  }
+
+  function serializePayloads(payloads) {
+    return _.map(payloads, function(p) {
+      var args;
+      if (_.isObject(p)) {
+        args = [p.name].concat(p.args);
+      } else {
+        args = [p];
+      }
       return {
-        name: sub.name,
-        params: sub.params
+        hashKey: args.join(','),
+        args: args
       };
-    } else {
-      return {
-        name: sub,
-        params: []
-      };
-    }
-  };
+    });
+  }
 
-  var builder = {
+  return {
 
     /**
-     * State configuration for the machine. Keys are the route state names
-     * and values are arrays of configuration objects. A configuration object
-     * has a `name` (subscription name) and an array of `params` (route state
-     * parameters to take from the state and invoke the subscription with.)
+     * Current active subsctipions - their keys uniquely identify the
+     * subscription by their name and the parameters that they were
+     * inovked with.
      *
      * @private
      * @var Object
      */
-    _subStates: {},
+    _currentSubs: {},
 
     /**
-     * Register a subscription state; chain these calls.
+     * Transition to a new subscription state.
      *
-     * @param   stateName   String
-     * @param   sub...      Strings | Objects
-     * @return  this
+     * @param   payloads    Array of payloads
+     * @return  Promise     Resolved when all required subscriptions are
+     *          open.
      */
-    state: function(stateName, sub) {
-      var args = Array.prototype.slice.call(arguments);
-      var subConfs = args.slice(1);
-      this._subStates[stateName] = _.map(subConfs, createStateConf);
-      return this;
+    transition: function(payloads) {
+      var self = this, processed = serializePayloads(payloads);
+      processed = dedubePayloads(processed);
+      var pendingPayloads = self._migrate(processed);
+      return $q.all(_.map(pendingPayloads, function(payload) {
+        return $meteor.subscribe.apply($meteor, payload.args).then(function(handle) {
+          self._currentSubs[payload.hashKey] = handle;
+        });
+      }));
     },
 
     /**
-     * Get the subscription configuration array for a given stateName
+     * Computes the subscription payloads required for the next state, stops
+     * the current subscriptions that aren't required for the next state and
+     * returns a set of pending payloads that should be processed to complete
+     * the transition.
      *
-     * @param   stateName String
-     * @return  Array
+     * @private
+     * @param   nextPayloads Array of $payloads
+     * @return  Array        Array of pending $payloads
      */
-    get: function(stateName) {
-      return this._subStates[stateName] || [];
+    _migrate: function(nextPayloads) {
+      var self = this;
+      var delta = _.filter(nextPayloads, function(payload) {
+        return !_.some(self._currentSubs, function(handle, key) {
+          return payload.hashKey === key;
+        });
+      });
+      _.each(self._currentSubs, function(handle, key) {
+        if (!_.some(nextPayloads, function(p) {
+          return p.hashKey === key;
+        })) {
+          handle.stop();
+          delete self._currentSubs[key];
+        }
+      });
+      return delta;
     }
 
   };
-  _.extend(this, builder);
 
-  function $subs($meteor, $q) {
-
-    return {
-
-      /**
-       * Current active subsctipions - their keys uniquely identify the
-       * subscription by their name and the parameters that they were
-       * inovked with.
-       *
-       * @private
-       * @var Object
-       */
-      _currentSubs: {},
-
-      /**
-       * Transition to a new state.
-       *
-       * @param   stateName   String
-       * @param   stateParams Object
-       * @return  Promise     Resolved when all required subscriptions are
-       *          open.
-       */
-      transition: function(stateName, stateParams) {
-        var self = this;
-        var statePayloads = self._migrate(stateName, stateParams);
-        return $q.all(_.map(statePayloads, function(payload) {
-          return $meteor.subscribe.apply($meteor, payload.args).then(function(handle) {
-            self._currentSubs[payload.hashKey] = handle;
-          });
-        }));
-      },
-
-      /**
-       * Computes the subscription payloads required for the next state, stops
-       * the current subscriptions that aren't required for the next route and
-       * returns a set of payloads that should be processed for the transition
-       * to be complete.
-       *
-       * @private
-       * @param   nextName    String  Name of the next state
-       * @param   nextParams  String  Dictionary of state params
-       * @return  Array       Subscription payloads that must be processed
-       */
-      _migrate: function(nextName, nextParams) {
-        var self = this;
-        var nextConfs = builder.get(nextName);
-        // Map the subscription configuration for the next state to a set
-        // of payloads that will be used to evaluate a subscription.
-        var nextPayloads = _.map(nextConfs, function(conf) {
-          return self._constructPayload(conf, nextParams);
-        });
-        // Set of payloads where the payload is an element of the next state
-        // payloads and there does not exist some key in the current table of
-        // subscriptions equal to the payload's hash key.
-        var payloadDelta = _.filter(nextPayloads, function(payload) {
-          return !_.some(self._currentSubs, function(handle, key) {
-            return payload.hashKey === key;
-          });
-        });
-        // Stop all current subscriptions and remove them from the table if
-        // there does not exist an element in the set of pending payloads
-        // with an equal hash key.
-        _.each(self._currentSubs, function(handle, key) {
-          if (!_.some(nextPayloads, function(p) {
-            return p.hashKey === key;
-          })) {
-            handle.stop();
-            delete self._currentSubs[key];
-          }
-        });
-        return payloadDelta;
-      },
-
-      /**
-       * Constructs a 'subscription payload' object for a state configuration
-       * object evaluated with a set of candidate state parameters.
-       *
-       * @private
-       * @param  conf             Object
-       * @param  candidateParams  Object
-       * @return Object { args: [..], hashKey: 'name,arg1,arg2..' }
-       */
-      _constructPayload: function(conf, candidateParams) {
-        var args = [conf.name].concat(_.map(conf.params, function(param) {
-          return candidateParams[param];
-        }));
-        return {
-          args: args,
-          hashKey: args.join(','),
-        };
-      }
-    };
-  }
-  $subs.$inject = ['$meteor', '$q'];
-
-  this.$get = $subs;
 }
+
+$subs.$inject = ['$meteor', '$q'];
 })(window, window.angular);
