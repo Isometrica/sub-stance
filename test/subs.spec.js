@@ -8,6 +8,7 @@ describe("$subs", function() {
       $q,
       $rootScope;
 
+  beforeEach(module('isa.substance'));
   beforeEach(inject(function(_$subs_, _$meteor_, _$q_, _$rootScope_) {
     $subs = _$subs_;
     $meteor = _$meteor_;
@@ -15,20 +16,21 @@ describe("$subs", function() {
     $rootScope = _$rootScope_;
   }));
 
-  describe('.transition', function() {
+  describe('.transition()', function() {
 
     var stop, subHandle;
 
     beforeEach(function() {
       stop = jasmine.createSpy('stop');
       subHandle = { stop: stop };
-      spyOn($meteor, 'subscribe').and.returnValue(subHandle);
+      spyOn($meteor, 'subscribe').and.returnValue($q.when(subHandle));
     });
 
     it("should return promise", function() {
 
-      $subsProvider.state('routeName');
-      var pr = $subs.transition('routeName');
+      var pr = $subs.transition(['sub']);
+      $rootScope.$digest();
+
       expect(pr).toEqual(jasmine.any(Object));
       expect(pr.then).toEqual(jasmine.any(Function));
 
@@ -42,8 +44,8 @@ describe("$subs", function() {
       expect($meteor.subscribe.calls.argsFor(0)).toEqual(['sub1']);
       expect($meteor.subscribe.calls.argsFor(1)).toEqual(['sub2']);
       expect($subs._currentSubs).toEqual({
-        'sub1': {},
-        'sub2': {}
+        'sub1': subHandle,
+        'sub2': subHandle
       });
 
     });
@@ -59,8 +61,8 @@ describe("$subs", function() {
       expect($meteor.subscribe.calls.argsFor(0)).toEqual(['sub', 1, 2, 3]);
       expect($meteor.subscribe.calls.argsFor(1)).toEqual(['sub', 1, 2]);
       expect($subs._currentSubs).toEqual({
-        'sub,1,2,3': {},
-        'sub,1,2': {}
+        'sub,1,2,3': subHandle,
+        'sub,1,2': subHandle
       });
 
     });
@@ -79,8 +81,8 @@ describe("$subs", function() {
       ]);
       $rootScope.$digest();
 
-      // TODO: Assert stop was called on the first 2 subs not the second 2
-      expect(stop.calls.count()).toBe(2);
+      // TODO: Assert stop was called on sub2
+      expect(stop.calls.count()).toBe(1);
       expect($subs._currentSubs).toEqual({
         'sub1,a,b,c': subHandle,
         'sub3,b': subHandle
@@ -108,9 +110,9 @@ describe("$subs", function() {
       expect(stop.calls.count()).toBe(1);
       expect($meteor.subscribe.calls.count()).toBe(4);
       expect($subs._currentSubs).toEqual({
-        'sub1,1,2,3': subHandle,
-        'sub2,4,5,6': subHandle,
-        'replace,1': subHandle
+        'sub1,a,b,c': subHandle,
+        'sub2,one,two,three': subHandle,
+        'replace,one': subHandle
       });
 
     });
@@ -156,7 +158,7 @@ describe("$subs", function() {
         'sub4,abc': subHandle
       });
 
-      expect(stop.calls.count()).toBe(5);
+      expect($meteor.subscribe.calls.count()).toBe(5);
 
     });
 
