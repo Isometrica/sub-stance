@@ -12,8 +12,11 @@ angular
 // - In $stateChangeStart, append transition recipie to resolves.
 // - Also ensure that other resolves come after it, i.e. depend on it
 //
-// Note: https://github.com/angular-ui/ui-router/issues/1165 you need
-// resolve: {} to be able to append them in the event handler.
+// Note:
+// - https://github.com/angular-ui/ui-router/issues/1165
+// - https://github.com/angular-ui/ui-router/issues/1278
+// .. looks like you should add a default resolve: {} to be able to append
+// them in the event handler.
 //
 // Test this. If it works, all we need then is a service to actually create
 // the subscriptions based on $subs. We don't need a provider to configure
@@ -36,7 +39,6 @@ function decorateStateProvider($stateProvider, $rootScope) {
         }
       }
     }
-    console.log('Subs for route', state.name, state.data.$subs);
     return parentFn(state);
 
   }
@@ -68,7 +70,6 @@ function stateChangeListener($rootScope) {
     });
 
     toState.resolve[subResolveKey] = ['$subs', function($subs) {
-      console.log('Resolving ' + subResolveKey + ', ', toState.resolve);
       return $subs.transition(toState.name, toParams);
     }];
 
