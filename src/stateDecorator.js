@@ -76,7 +76,7 @@ function decorateStateProvider($stateProvider, $provide) {
 
   }
 
-  function transitionToDecorateFn($state, $subs, $rootScope, $q) {
+  function transitionToDecorateFn($state, $subs, $rootScope, $log) {
 
     var transitionTo = $state.transitionTo;
 
@@ -86,7 +86,7 @@ function decorateStateProvider($stateProvider, $provide) {
         if (_.isUndefined(toParams[paramName])) {
           var param = $state.params[paramName];
           if (!param) {
-            // TODO: Log
+            $log.warn('State param ' + paramName + ' doesn\'t exist but $subs requires it.');
           } else {
             toParams[paramName] = param;
           }
@@ -96,11 +96,10 @@ function decorateStateProvider($stateProvider, $provide) {
 
     $state.transitionTo = function(to, toParams, options) {
       var args = Array.prototype.slice.call(arguments),
-          tState = $state.get(to),
-          tData = tState.data,
+          tData = $state.get(to).data,
           payload;
-      if (tState.data) {
-        var subs = tState.data.$subs;
+      if (tData) {
+        var subs = tData.$subs;
         extractParams(subs, toParams);
         payload = evaluatedConf(subs, toParams);
       }
@@ -115,7 +114,7 @@ function decorateStateProvider($stateProvider, $provide) {
     return $state;
 
   }
-  transitionToDecorateFn.$inject = ['$delegate', '$subs', '$rootScope'];
+  transitionToDecorateFn.$inject = ['$delegate', '$subs', '$rootScope', '$log'];
 
   $provide.decorator('$state', transitionToDecorateFn);
   $stateProvider.decorator('data', dataDecorateFn);
