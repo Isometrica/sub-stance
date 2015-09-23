@@ -78,9 +78,7 @@ function $subs($meteor, $q) {
     _migrate: function(nextPayloads) {
       var self = this;
       var delta = _.filter(nextPayloads, function(payload) {
-        return !_.some(self._currentSubs, function(handle, key) {
-          return payload.hashKey === key;
-        });
+        return !self._currentSubs[payload.hashKey];
       });
       _.each(self._currentSubs, function(handle, key) {
         if (!_.some(nextPayloads, function(p) {

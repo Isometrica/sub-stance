@@ -43,15 +43,18 @@ function $asyncTransition($rootScope, $state) {
   return function(asyncFn) {
     var lock;
     return function(event, toState, toParams) {
+      console.log('-- Transition');
       if (lock) {
         lock = false;
+        console.log('-- Locked, unlocking');
         return;
       }
+      console.log('-- Locking and performing operation');
       event.preventDefault();
       var args = Array.prototype.slice.call(arguments);
       asyncFn.apply(null, args)
         .then(function() {
-          $state.transitionTo(toState, toParams);
+          $state.go(toState, toParams);
         })
         .catch(function(error) {
           args.unshift('$asyncTransitionError');
@@ -69,8 +72,7 @@ $asyncTransition.$inject = ['$rootScope', '$state'];
 
 angular
   .module('isa.substance')
-  .config(decorateStateProvider)
-  .run(stateChangeListener);
+  .config(decorateStateProvider);
 
 /**
  * @description
@@ -106,7 +108,22 @@ angular
  * @author Stephen Fortune
  */
 
-function decorateStateProvider($stateProvider, $rootScope) {
+function decorateStateProvider($stateProvider, $provide) {
+
+  function evaluatedConf(confs, params) {
+    var evaled = _.map(confs, function(conf) {
+      if (_.isObject(conf)) {
+        var cp = _.extend({}, conf);
+        cp.args = _.map(conf.args, function(argName) {
+          return params[argName];
+        });
+        return cp;
+      }
+      return conf;
+    });
+    console.log("Evaluated conf", evaled);
+    return evaled;
+  }
 
   function dataDecorateFn(state, parentFn) {
 
@@ -126,30 +143,36 @@ function decorateStateProvider($stateProvider, $rootScope) {
     return parentFn(state);
 
   }
+
+  function transitionToDecorateFn($state, $subs, $rootScope) {
+
+    var transitionTo = $state.transitionTo;
+
+    $state.transitionTo = function(to, toParams) {
+      var args = Array.prototype.slice.call(arguments),
+          tData = $state.get(to).data,
+          payload;
+      if (tData) {
+        payload = evaluatedConf(tData.$subs, toParams);
+      }
+      return $subs.transition(payload)
+        .then(function() {
+          return transitionTo.apply($state, args);
+        })
+        .catch(function(error) {
+          $rootScope.$broadcast.call($rootScope, '$subTransitionError', to, toParams, error);
+        });
+    };
+
+    return $state;
+
+  }
+  transitionToDecorateFn.$inject = ['$delegate', '$subs', '$rootScope'];
+
+  $provide.decorator('$state', transitionToDecorateFn);
   $stateProvider.decorator('data', dataDecorateFn);
 }
-decorateStateProvider.$inject = ['$stateProvider'];
-
-function evaluatedConf(confs, params) {
-  return _.map(confs, function(conf) {
-    if (_.isObject(conf)) {
-      var cp = _.extend({}, conf);
-      cp.args = _.map(conf.args, function(argName) {
-        return params[argName];
-      });
-      return cp;
-    }
-    return conf;
-  });
-}
-
-function stateChangeListener($rootScope, $asyncTransition, $subs) {
-  $rootScope.$on('$stateChangeStart', $asyncTransition(function(event, toState, toParams) {
-    var payload = evaluatedConf(toState.data.$subs, toParams);
-    return $subs.transition(payload);
-  }));
-}
-stateChangeListener.$inject = ['$rootScope', '$asyncTransition', '$subs'];
+decorateStateProvider.$inject = ['$stateProvider', '$provide'];
 
 
 angular
@@ -231,9 +254,7 @@ function $subs($meteor, $q) {
     _migrate: function(nextPayloads) {
       var self = this;
       var delta = _.filter(nextPayloads, function(payload) {
-        return !_.some(self._currentSubs, function(handle, key) {
-          return payload.hashKey === key;
-        });
+        return !self._currentSubs[payload.hashKey];
       });
       _.each(self._currentSubs, function(handle, key) {
         if (!_.some(nextPayloads, function(p) {
