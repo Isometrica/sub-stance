@@ -14,64 +14,6 @@ angular
 
 angular
   .module('isa.substance')
-  .service('$asyncTransition', $asyncTransition);
-
-/**
- * @description
- * Works around ui-router's lack of support for deffering state
- * transitions in an event listener.
- *
- * We tried a couple of approaches, including dynamically appending
- * resolves to the states in '$stateChangeStart', all of which
- * came up short due to the way resolves are handled by $stateProvider.
- * Reverted to an ugly, good-enough solution that prevents the event
- * from being processed and re-calles `$state.transitionTo` when the
- * async op has finished, faking lockstep. This occurs before we hit
- * the resolves and after the required subscriptions are openned.
- *
- * If the transition fails, an `$asyncTransitionError` will be
- * broadcasted on the `$rootScope` with the error.
- *
- * @see https://github.com/angular-ui/ui-router/issues/1257
- * @see https://github.com/angular-ui/ui-router/issues/1278
- * @see https://github.com/angular-ui/ui-router/issues/1165
- *
- * @copyright Isometrica
- * @author Stephen Fortune
- */
-function $asyncTransition($rootScope, $state) {
-  return function(asyncFn) {
-    var lock;
-    return function(event, toState, toParams) {
-      console.log('-- Transition');
-      if (lock) {
-        lock = false;
-        console.log('-- Locked, unlocking');
-        return;
-      }
-      console.log('-- Locking and performing operation');
-      event.preventDefault();
-      var args = Array.prototype.slice.call(arguments);
-      asyncFn.apply(null, args)
-        .then(function() {
-          $state.go(toState, toParams);
-        })
-        .catch(function(error) {
-          args.unshift('$asyncTransitionError');
-          args.push(error);
-          $rootScope.$broadcast.apply($rootScope, args);
-        })
-        .finally(function() {
-          lock = true;
-        });
-    };
-  };
-}
-$asyncTransition.$inject = ['$rootScope', '$state'];
-
-
-angular
-  .module('isa.substance')
   .config(decorateStateProvider);
 
 /**
@@ -104,6 +46,7 @@ angular
  * - Listening to `$stateChangeStart` on the route scope, and deffering
  *   the event until the $subs have been transitioned (uses `$asyncTransition`).
  *
+ * @see https://github.com/christopherthielen/ui-router-extras/blob/master/src/transition.js
  * @copyright Isometrica
  * @author Stephen Fortune
  */
@@ -111,7 +54,7 @@ angular
 function decorateStateProvider($stateProvider, $provide) {
 
   function evaluatedConf(confs, params) {
-    var evaled = _.map(confs, function(conf) {
+    return _.map(confs, function(conf) {
       if (_.isObject(conf)) {
         var cp = _.extend({}, conf);
         cp.args = _.map(conf.args, function(argName) {
@@ -121,8 +64,10 @@ function decorateStateProvider($stateProvider, $provide) {
       }
       return conf;
     });
-    console.log("Evaluated conf", evaled);
-    return evaled;
+  }
+
+  function flattenConfArgs(subConf) {
+    return [].concat.apply([], _.pluck(_.filter(subConf, _.isObject), 'args'));
   }
 
   function dataDecorateFn(state, parentFn) {
@@ -144,22 +89,41 @@ function decorateStateProvider($stateProvider, $provide) {
 
   }
 
-  function transitionToDecorateFn($state, $subs, $rootScope) {
+  function transitionToDecorateFn($state, $subs, $rootScope, $q) {
 
     var transitionTo = $state.transitionTo;
 
-    $state.transitionTo = function(to, toParams) {
+    function extractParams(subConf, toParams) {
+      var reqParams = flattenConfArgs(subConf);
+      console.log('Turning', toParams);
+      _.each(reqParams, function(paramName) {
+        if (_.isUndefined(toParams[paramName])) {
+          var param = $state.params[paramName];
+          if (!param) {
+            // TODO: Log
+          } else {
+            toParams[paramName] = param;
+          }
+        }
+      });
+      console.log('Into', toParams);
+    }
+
+    $state.transitionTo = function(to, toParams, options) {
       var args = Array.prototype.slice.call(arguments),
-          tData = $state.get(to).data,
+          tState = $state.get(to),
+          tData = tState.data,
           payload;
-      if (tData) {
-        payload = evaluatedConf(tData.$subs, toParams);
+      if (tState.data) {
+        var subs = tState.data.$subs;
+        console.log('tState', tState);
+        extractParams(subs, toParams);
+        payload = evaluatedConf(subs, toParams);
       }
       return $subs.transition(payload)
         .then(function() {
           return transitionTo.apply($state, args);
-        })
-        .catch(function(error) {
+        }, function(error) {
           $rootScope.$broadcast.call($rootScope, '$subTransitionError', to, toParams, error);
         });
     };

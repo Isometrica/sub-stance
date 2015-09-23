@@ -33,6 +33,7 @@ angular
  * - Listening to `$stateChangeStart` on the route scope, and deffering
  *   the event until the $subs have been transitioned (uses `$asyncTransition`).
  *
+ * @see https://github.com/christopherthielen/ui-router-extras/blob/master/src/transition.js
  * @copyright Isometrica
  * @author Stephen Fortune
  */
@@ -50,6 +51,10 @@ function decorateStateProvider($stateProvider, $provide) {
       }
       return conf;
     });
+  }
+
+  function flattenConfArgs(subConf) {
+    return [].concat.apply([], _.pluck(_.filter(subConf, _.isObject), 'args'));
   }
 
   function dataDecorateFn(state, parentFn) {
@@ -71,22 +76,38 @@ function decorateStateProvider($stateProvider, $provide) {
 
   }
 
-  function transitionToDecorateFn($state, $subs, $rootScope) {
+  function transitionToDecorateFn($state, $subs, $rootScope, $q) {
 
     var transitionTo = $state.transitionTo;
 
-    $state.transitionTo = function(to, toParams) {
+    function extractParams(subConf, toParams) {
+      var reqParams = flattenConfArgs(subConf);
+      _.each(reqParams, function(paramName) {
+        if (_.isUndefined(toParams[paramName])) {
+          var param = $state.params[paramName];
+          if (!param) {
+            // TODO: Log
+          } else {
+            toParams[paramName] = param;
+          }
+        }
+      });
+    }
+
+    $state.transitionTo = function(to, toParams, options) {
       var args = Array.prototype.slice.call(arguments),
-          tData = $state.get(to).data,
+          tState = $state.get(to),
+          tData = tState.data,
           payload;
-      if (tData) {
-        payload = evaluatedConf(tData.$subs, toParams);
+      if (tState.data) {
+        var subs = tState.data.$subs;
+        extractParams(subs, toParams);
+        payload = evaluatedConf(subs, toParams);
       }
       return $subs.transition(payload)
         .then(function() {
           return transitionTo.apply($state, args);
-        })
-        .catch(function(error) {
+        }, function(error) {
           $rootScope.$broadcast.call($rootScope, '$subTransitionError', to, toParams, error);
         });
     };
