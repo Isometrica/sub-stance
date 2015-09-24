@@ -382,12 +382,4 @@ describe("$subs", function() {
 
   });
 
-  xdescribe('.add', function() {
-
-    xit("should append new subscription to current state");
-    xit("should return same objects on duplicate request");
-    xit("should be cleared on transition");
-
-  });
-
 });
