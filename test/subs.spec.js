@@ -365,7 +365,20 @@ describe("$subs", function() {
 
   describe(".needBind()", function() {
 
-    it("should decrement retain count on $destroy", function() {});
+    beforeEach(function() {
+      spyOn($meteor, 'subscribe').and.returnValue($q.when({ stop: angular.noop }));
+    });
+
+    it("should decrement retain count on $destroy", function() {
+
+      $subs.needBind($rootScope, 'sub', 1, 2, 3);
+      $rootScope.$digest();
+
+      $rootScope.$destroy();
+
+      expect($subs._currentSubs['sub,1,2,3'].$$retainCount).toBe(0);
+
+    });
 
   });
 

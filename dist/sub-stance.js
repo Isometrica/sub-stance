@@ -289,6 +289,16 @@ function $subs($meteor, $q, $rootScope, $timeout) {
       return self._transQ;
     },
 
+    needBind: function(scope) {
+      return this.need.apply(this, Array.prototype.slice.call(arguments, 1))
+        .then(function(descriptor) {
+          scope.$on('$destroy', function() {
+            descriptor.stop();
+          });
+          return descriptor;
+        });
+    },
+
     /**
      * Invokes a subscription from the given payload.
      *
