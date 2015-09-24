@@ -255,14 +255,19 @@ function $subs($meteor, $q, $rootScope, $timeout) {
     createDescriptorFor: function(key, sub) {
       var self = this;
       if(_.isUndefined(sub.$$retainCount)) {
-        sub.$$retainCount = 0;
+        sub.$$retainCount = 1;
       } else {
         ++sub.$$retainCount;
       }
       return {
+        _dead: false,
         stop: function() {
+          if (this._dead) {
+            throw new Error("Descriptor already dead.");
+          }
+          this._dead = true;
           --sub.$$retainCount;
-          if (!sub.$$stateReq) {
+          if (!sub.$$stateReq && !sub.$$retainCount) {
             self._discardSub(key);
           }
         }
@@ -271,14 +276,14 @@ function $subs($meteor, $q, $rootScope, $timeout) {
 
     need: function() {
       var args = Array.prototype.slice.call(arguments),
-          payload = serializePayloads([args.slice(0)]),
+          payload = { hashKey: args.join(','), args: args },
           self = this, sub = self._currentSubs[payload.hashKey];
       if (sub) {
-        return $q.resolve(self.createDescriptorFor(sub));
+        return $q.resolve(self.createDescriptorFor(payload.hashKey, sub));
       }
       self._transQ = self._transQ.then(function() {
-        return self._invokeSub(payload[0]).then(function(sub) {
-          return self.createDescriptorFor(sub);
+        return self._invokeSub(payload).then(function(sub) {
+          return self.createDescriptorFor(payload.hashKey, sub);
         });
       });
       return self._transQ;

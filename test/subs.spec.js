@@ -259,21 +259,96 @@ describe("$subs", function() {
 
   describe(".need()", function() {
 
-    it("should return existing sub and increment retain count", function() {
+    beforeEach(function() {
+      spyOn($meteor, 'subscribe').and.returnValue($q.when({ stop: angular.noop }));
+    });
+
+    it("should return sub descriptor", function() {
+
+      var descriptor;
+      $subs.need('sub').then(function(desc) { descriptor = desc; });
+      $rootScope.$digest();
+
+      expect(descriptor).toEqual(jasmine.any(Object));
+      expect(descriptor.stop).toEqual(jasmine.any(Function));
 
     });
 
-    it("should return new sub and attach retain count", function() {});
+    it("should attach retain count to new sub", function() {
+
+      $subs.need('sub');
+      $rootScope.$digest();
+
+      expect($subs._currentSubs.sub.$$retainCount).toBe(1);
+
+    });
+
+    it("should increment retain count for existing sub", function() {
+
+      $subs.need('sub');
+      $subs.need('sub');
+      $rootScope.$digest();
+
+      expect($subs._currentSubs.sub.$$retainCount).toBe(2);
+
+    });
 
     it("should decrement retain count on stop", function() {
 
+      $subs.need('sub');
+      var descriptor;
+      $subs.need('sub').then(function(desc) { descriptor = desc; });
+      $rootScope.$digest();
+
+      descriptor.stop();
+
+      expect($subs._currentSubs.sub.$$retainCount).toBe(1);
+
     });
 
-    it("should discard once retain count is 0", function() {});
+    it("should throw if descriptor stop is called twice", function() {
 
-    it("should discard if the sub was requested in transition", function() {
+      var descriptor;
+      $subs.need('sub').then(function(desc) { descriptor = desc; });
+      $rootScope.$digest();
+
+      descriptor.stop();
+      expect(function() { descriptor.stop(); }).toThrow();
 
     });
+
+    it("should discard once retain count is 0", function() {
+
+      var descriptor;
+      $subs.need('sub').then(function(desc) { descriptor = desc; });
+      $rootScope.$digest();
+
+      descriptor.stop();
+      $timeout.flush();
+
+      expect($subs._currentSubs).toEqual({});
+
+    });
+
+    it("should not discard if the sub was requested in a transition", function() {
+
+      $subs.transition(['sub']);
+      var descriptor;
+      $subs.need('sub').then(function(desc) { descriptor = desc; });
+      $rootScope.$digest();
+
+      descriptor.stop();
+      $timeout.flush();
+
+      expect($subs._currentSubs.sub).toBeDefined();
+
+    });
+
+  });
+
+  describe(".needBind()", function() {
+
+    it("should decrement retain count on $destroy", function() {});
 
   });
 
