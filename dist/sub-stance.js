@@ -99,6 +99,7 @@ function decorateStateProvider($stateProvider, $provide) {
 
     function extractParams(subConf, toParams) {
       var reqParams = flattenConfArgs(subConf);
+      console.log('Extracting params', $state.params, toParams);
       _.each(reqParams, function(paramName) {
         if (_.isUndefined(toParams[paramName])) {
           var param = $state.params[paramName];
@@ -115,6 +116,7 @@ function decorateStateProvider($stateProvider, $provide) {
       var args = Array.prototype.slice.call(arguments),
           tData = $state.get(to).data,
           payload;
+      console.log('Transitioning to ' + to, tData);
       if (tData) {
         var subs = tData.$subs;
         extractParams(subs, toParams);

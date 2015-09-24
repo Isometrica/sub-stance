@@ -209,7 +209,6 @@ describe("$subs", function() {
 
     });
 
-    xit("should rollback to previous subs on error");
     xit("should start subscriptions with autorun blocks");
     xit("should re-run autorun blocks");
     // xit("should resolve promise result once all subscriptions have started");

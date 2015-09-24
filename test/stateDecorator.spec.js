@@ -6,23 +6,25 @@ describe("$stateProvider", function() {
   var $stateProvider,
       $state,
       $injector,
-      $subsMock,
+      $subs,
       $log,
       $rootScope;
 
-  beforeEach(module('isa.substance', function(_$stateProvider_, $provide) {
+  beforeEach(module('isa.substance', function(_$stateProvider_) {
+    /// @note I have assumed its OK to configure the $stateProvider
+    /// and access the $state in the same context.
     $stateProvider = _$stateProvider_;
-    $subsMock = { transition: angular.noop };
-    $provide.value('$subs', $subsMock);
   }));
-  beforeEach(inject(function(_$state_, _$rootScope_, _$injector_, _$log_) {
+  beforeEach(inject(function(_$state_, _$rootScope_, _$injector_, _$log_, _$subs_, $q) {
     $state = _$state_;
     $rootScope = _$rootScope_;
     $injector = _$injector_;
     $log = _$log_;
+    $subs = _$subs_;
+    spyOn($subs, 'transition').and.returnValue($q.when({}));
   }));
 
-  describe('decorator(data)', function() {
+  describe('.decorator(data)', function() {
 
     it("should merge data.$subs from parents", function() {
 
@@ -123,11 +125,10 @@ describe("$stateProvider", function() {
 
   });
 
-  describe("$stateChangeStart", function() {
+  describe(".decorator(transitionTo)", function() {
 
-    it("should build $subs.transition args from state", inject(function($q) {
+    it("should build $subs.transition args from state", function() {
 
-      spyOn($subsMock, 'transition').and.returnValue($q.when({}));
       $stateProvider
         .state('a', {
           template: '<ui-view/>',
@@ -147,12 +148,45 @@ describe("$stateProvider", function() {
       });
       $rootScope.$digest();
 
-      expect($subsMock.transition.calls.argsFor(0)).toEqual([[
+      expect($subs.transition.calls.argsFor(0)).toEqual([[
         { name: 'sub1', args: ['a'] },
         { name: 'sub2', args: ['b', 'a'] },
       ]]);
 
-    }));
+    });
+
+    it("should search for missing params in the current state", function() {
+
+      $stateProvider
+        .state('base', {
+          template: '<ui-view/>',
+          url: '/:param1',
+        })
+        .state('d1', {
+          template: '<ui-view/>',
+          parent: 'base',
+          url: '/derived1',
+        })
+        .state('d2', {
+          template: '<ui-view/>',
+          parent: 'base',
+          url: '/derived2/:param2',
+          data: {
+            $subs: [{ name: 'sub', args: ['param1', 'param2'] }]
+          }
+        });
+
+      $state.transitionTo('d1', { param1: 'a' });
+      $rootScope.$digest();
+
+      $state.transitionTo('d2', { param2: 'b' });
+      $rootScope.$digest();
+
+      expect($subs.transition.calls.argsFor(1)).toEqual([[
+        { name: 'sub', args: ['a', 'b'] },
+      ]]);
+
+    });
 
   });
 
