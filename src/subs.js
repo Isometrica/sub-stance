@@ -69,7 +69,7 @@ function $subs($meteor, $q, $rootScope, $timeout) {
             delete self._currentSubs[key];
           }
           self._cleanUpDiscQ(key);
-        }, 1);
+        }, 5000);
       }
     },
 
