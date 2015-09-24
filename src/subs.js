@@ -100,7 +100,9 @@ function $subs($meteor, $q, $rootScope, $timeout) {
         .then(function() {
           var pendingPayloads = self._migrate(processed);
           return $q.all(_.map(pendingPayloads, function(payload) {
-            return self._invokeSub(payload);
+            return self._invokeSub(payload).then(function(sub) {
+              sub.state = true;
+            });
           }));
         })
         .catch(function(error) {
@@ -111,15 +113,34 @@ function $subs($meteor, $q, $rootScope, $timeout) {
 
     },
 
-    need: function(scope) {
+    createDescriptorFor: function(key, sub) {
+      var self = this;
+      if(sub.retainCount) {
+        ++sub.retainCount;
+      } else {
+        sub.retainCount = 0;
+      }
+      return {
+        stop: function() {
+          --sub.retainCount;
+          if (!sub.state) {
+            self._discardSub(key);
+          }
+        }
+      };
+    },
+
+    need: function() {
       var args = Array.prototype.slice.call(arguments),
-          payload = serializePayloads([args.slice(1)]),
-          self = this;
-      if (self._currentSubs[payload.hashKey]) {
-        return $q.resolve();
+          payload = serializePayloads([args.slice(0)]),
+          self = this, sub = self._currentSubs[payload.hashKey];
+      if (sub) {
+        return $q.resolve(self.createDescriptorFor(sub));
       }
       self._transQ = self._transQ.then(function() {
-        return self._invokeSub(payload[0]);
+        return self._invokeSub(payload[0]).then(function(sub) {
+          return self.createDescriptorFor(sub);
+        });
       });
       return self._transQ;
     },
@@ -136,6 +157,7 @@ function $subs($meteor, $q, $rootScope, $timeout) {
       return $meteor.subscribe.apply($meteor, payload.args)
         .then(function(handle) {
           self._currentSubs[payload.hashKey] = handle;
+          return handle;
         });
     },
 
@@ -160,7 +182,7 @@ function $subs($meteor, $q, $rootScope, $timeout) {
         var compKeys = function(p) { return p.hashKey === key; };
         if (_.some(nextPayloads, compKeys)) {
           self._invalidateDiscardQ(key);
-        } else {
+        } else if(!handle.retainCount) {
           self._discardSub(key);
         }
       });

@@ -36,7 +36,7 @@
 - Going to focus on `needBind` for now; the case to keep a sub open forever in a service isn't a strong one.
 - Subs required in transition set `state` flag to true.
 - If a `needBind` request is made, a `retainCount` property is attached to the sub handle.
-- On transition, subs are torn down if they not needed by the next state and have a retainCount of > 0
+- On transition, subs are torn down if have a retainCount of > 0 (and are not needed by the next state)
 - If the retain count of a sub hits 0, it is torn down if it is not a `state` sub (i.e. isn't required globally across the entire state).
 - `needBind` takes a `$scope` and listens to `$destroy` to decrement retain count.
 
@@ -45,6 +45,6 @@
 - As well as payloads, we can just pass a function to `need*` and `transition`.
 - This function must return a subscription.
 - This is wrapped in an autorun block i `$subs`.
-- Probably will need to listen to the `Tracker.Deps.invalidate` it in the `$subs`? Or we could register an object in `_currentSubs` that has a property of the sub etc. They autorun block could just update the property? 
+- Probably will need to listen to the `Tracker.Deps.invalidate` it in the `$subs`? Or we could register an object in `_currentSubs` that has a property of the sub etc. They autorun block could just update the property?
 - Passed the `$meteor` service for convenience (considered making them invokable but that's overkill).
 - They have random keys; will be torn down on transition (or under the appropriate retain conditions).
