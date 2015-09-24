@@ -23,7 +23,6 @@ describe("$subs", function() {
     beforeEach(function() {
       stop = jasmine.createSpy('stop');
       subHandle = { stop: stop };
-      spyOn($meteor, 'subscribe').and.returnValue($q.when(subHandle));
     });
 
     it("should return promise", function() {
@@ -38,6 +37,8 @@ describe("$subs", function() {
 
     it("should start simple subscriptions", function() {
 
+      spyOn($meteor, 'subscribe').and.returnValue($q.when(subHandle));
+
       $subs.transition(['sub1', 'sub2']);
       $rootScope.$digest();
 
@@ -51,6 +52,8 @@ describe("$subs", function() {
     });
 
     it("should start subscriptions with arguments", function() {
+
+      spyOn($meteor, 'subscribe').and.returnValue($q.when(subHandle));
 
       $subs.transition([
         { name: 'sub', args: [1, 2, 3] },
@@ -68,6 +71,8 @@ describe("$subs", function() {
     });
 
     it("should discard unrequired subscriptions", function() {
+
+      spyOn($meteor, 'subscribe').and.returnValue($q.when(subHandle));
 
       $subs.transition([
         { name: 'sub1', args: ['a', 'b', 'c'] },
@@ -91,6 +96,8 @@ describe("$subs", function() {
     });
 
     it("should reuse old subscriptions", function() {
+
+      spyOn($meteor, 'subscribe').and.returnValue($q.when(subHandle));
 
       $subs.transition([
         { name: 'sub1', args: ['a', 'b', 'c'] },
@@ -119,6 +126,8 @@ describe("$subs", function() {
 
     it("should clear all subs on empty state conf", function() {
 
+      spyOn($meteor, 'subscribe').and.returnValue($q.when(subHandle));
+
       $subs.transition(['sub1', 'sub2']);
       $rootScope.$digest();
 
@@ -141,6 +150,8 @@ describe("$subs", function() {
 
     it("should dedupe subscription payloads", function() {
 
+      spyOn($meteor, 'subscribe').and.returnValue($q.when(subHandle));
+
       $subs.transition([
         'sub1', 'sub1', 'sub1', 'sub2',
         { name: 'sub3', args: [1, 2] },
@@ -159,6 +170,42 @@ describe("$subs", function() {
       });
 
       expect($meteor.subscribe.calls.count()).toBe(5);
+
+    });
+
+    it("should queue transition operations", function() {
+
+      spyOn($meteor, 'subscribe').and.returnValue($q.when(subHandle));
+
+      // @note Wasn't sure how to test this without actually invoking delays.
+      // For now, this test should be sufficient in asserting that transitions
+      // are processed in the order that they are requested.
+
+      var transIndxs = [];
+
+      $subs.transition(['sub1']).then(function() { transIndxs.push(0); });
+      $subs.transition(['sub2', 'sub1']).then(function() { transIndxs.push(1); });
+      $subs.transition(['sub3', 'sub2']).then(function() { transIndxs.push(2); });
+      $subs.transition(['sub4', 'sub3']).then(function() { transIndxs.push(3); });
+      $subs.transition(['sub5']).then(function() { transIndxs.push(4); });
+
+      $rootScope.$digest();
+
+      expect(transIndxs).toEqual([0, 1, 2, 3, 4]);
+      expect($subs._currentSubs).toEqual({ 'sub5': subHandle });
+
+    });
+
+    it("should broadcast error if transition operation fails", function() {
+
+      spyOn($rootScope, '$broadcast');
+      spyOn($meteor, 'subscribe').and.returnValue($q.reject("error"));
+
+      $subs.transition(['sub1']);
+      $rootScope.$digest();
+
+      expect($rootScope.$broadcast.calls.count()).toBe(1);
+      expect($rootScope.$broadcast.calls.argsFor(0)).toEqual(['$subTransitionError', "error"]);
 
     });
 
