@@ -66,10 +66,10 @@ function $subs($meteor, $q, $rootScope, $timeout) {
           var sub = self._currentSubs[key];
           if (sub) {
             sub.stop();
-            delete sub[key];
+            delete self._currentSubs[key];
           }
           self._cleanUpDiscQ(key);
-        }, 5000);
+        }, 1);
       }
     },
 
@@ -83,6 +83,7 @@ function $subs($meteor, $q, $rootScope, $timeout) {
         $timeout.cancel(discardQ);
         self._cleanUpDiscQ(key);
       }
+      return !!discardQ;
     },
 
     /**
@@ -122,7 +123,6 @@ function $subs($meteor, $q, $rootScope, $timeout) {
      */
     _invokeSub: function(payload) {
       var self = this;
-      self._invalidateDiscardQ(payload.hashKey);
       return $meteor.subscribe.apply($meteor, payload.args)
         .then(function(handle) {
           self._currentSubs[payload.hashKey] = handle;
@@ -145,7 +145,10 @@ function $subs($meteor, $q, $rootScope, $timeout) {
         return !self._currentSubs[payload.hashKey];
       });
       _.each(self._currentSubs, function(handle, key) {
-        if (!_.some(nextPayloads, function(p) { return p.hashKey === key; })) {
+        var compKeys = function(p) { return p.hashKey === key; };
+        if (_.some(nextPayloads, compKeys)) {
+          self._invalidateDiscardQ(key);
+        } else {
           self._discardSub(key);
         }
       });

@@ -6,14 +6,16 @@ describe("$subs", function() {
   var $subs,
       $meteor,
       $q,
-      $rootScope;
+      $rootScope,
+      $timeout;
 
   beforeEach(module('isa.substance'));
-  beforeEach(inject(function(_$subs_, _$meteor_, _$q_, _$rootScope_) {
+  beforeEach(inject(function(_$subs_, _$meteor_, _$q_, _$rootScope_, _$timeout_) {
     $subs = _$subs_;
     $meteor = _$meteor_;
     $q = _$q_;
     $rootScope = _$rootScope_;
+    $timeout = _$timeout_;
   }));
 
   describe('.transition()', function() {
@@ -85,6 +87,7 @@ describe("$subs", function() {
         { name: 'sub3', args: ['b'] }
       ]);
       $rootScope.$digest();
+      $timeout.flush();
 
       // TODO: Assert stop was called on sub2
       expect(stop.calls.count()).toBe(1);
@@ -112,6 +115,7 @@ describe("$subs", function() {
         { name: 'replace', args: ['one']}
       ]);
       $rootScope.$digest();
+      $timeout.flush();
 
       // TODO: Assert stop was called on destroyMe
       expect(stop.calls.count()).toBe(1);
@@ -133,6 +137,7 @@ describe("$subs", function() {
 
       $subs.transition([]);
       $rootScope.$digest();
+      $timeout.flush();
 
       expect(stop.calls.count()).toBe(2);
       expect($subs._currentSubs).toEqual({});
@@ -142,6 +147,7 @@ describe("$subs", function() {
 
       $subs.transition();
       $rootScope.$digest();
+      $timeout.flush();
 
       expect(stop.calls.count()).toBe(4);
       expect($subs._currentSubs).toEqual({});
@@ -190,6 +196,7 @@ describe("$subs", function() {
       $subs.transition(['sub5']).then(function() { transIndxs.push(4); });
 
       $rootScope.$digest();
+      $timeout.flush();
 
       expect(transIndxs).toEqual([0, 1, 2, 3, 4]);
       expect($subs._currentSubs).toEqual({ 'sub5': subHandle });
@@ -206,6 +213,37 @@ describe("$subs", function() {
 
       expect($rootScope.$broadcast.calls.count()).toBe(1);
       expect($rootScope.$broadcast.calls.argsFor(0)).toEqual(['$subTransitionError', "error"]);
+
+    });
+
+    it("should delay discard by an interval", function() {
+
+      spyOn($meteor, 'subscribe').and.returnValue($q.when(subHandle));
+
+      $subs.transition(['sub1', 'sub2']);
+      $subs.transition();
+      $rootScope.$digest();
+
+      expect($subs._currentSubs).not.toEqual({});
+
+      $timeout.flush();
+
+      expect($subs._currentSubs).toEqual({});
+
+    });
+
+    it("should cancel delayed discard if sub requested intermittently", function() {
+
+      spyOn($meteor, 'subscribe').and.returnValue($q.when(subHandle));
+
+      $subs.transition(['sub1', 'sub2']);
+      $subs.transition(['intermediate']);
+      $subs.transition(['sub1']);
+
+      $rootScope.$digest();
+      $timeout.flush();
+
+      expect(stop.calls.count()).toBe(2);
 
     });
 
