@@ -249,6 +249,21 @@ describe("$subs", function() {
 
     it("should not discard subs with a retain count", function() {
 
+      spyOn($meteor, 'subscribe').and.returnValue($q.when(subHandle));
+
+      $subs.transition(['sub']);
+      $rootScope.$digest();
+
+      $subs.need('sub');
+      $rootScope.$digest();
+
+      $subs.transition(['another']);
+      $rootScope.$digest();
+      $timeout.flush();
+
+      expect($subs._currentSubs.sub).toBeDefined();
+      expect($subs._currentSubs.another).toBeDefined();
+
     });
 
     xit("should start subscriptions with autorun blocks");
@@ -273,6 +288,8 @@ describe("$subs", function() {
       expect(descriptor.stop).toEqual(jasmine.any(Function));
 
     });
+
+    it("should take arguments", function() {});
 
     it("should attach retain count to new sub", function() {
 
