@@ -93,7 +93,7 @@ function decorateStateProvider($stateProvider, $provide) {
 
   }
 
-  function transitionToDecorateFn($state, $subs, $rootScope, $log) {
+  function transitionToDecorateFn($state, $subs, $log) {
 
     var transitionTo = $state.transitionTo;
 
@@ -120,7 +120,8 @@ function decorateStateProvider($stateProvider, $provide) {
         extractParams(subs, toParams);
         payload = evaluatedConf(subs, toParams);
       }
-      return $subs.transition(payload)
+      return $subs
+        .transition(payload)
         .then(function() {
           return transitionTo.apply($state, args);
         });
@@ -129,7 +130,7 @@ function decorateStateProvider($stateProvider, $provide) {
     return $state;
 
   }
-  transitionToDecorateFn.$inject = ['$delegate', '$subs', '$rootScope', '$log'];
+  transitionToDecorateFn.$inject = ['$delegate', '$subs', '$log'];
 
   $provide.decorator('$state', transitionToDecorateFn);
   $stateProvider.decorator('data', dataDecorateFn);
@@ -140,8 +141,6 @@ decorateStateProvider.$inject = ['$stateProvider', '$provide'];
 angular
   .module('isa.substance')
   .service('$subs', $subs);
-
-var queueLen = 0;
 
 /**
  * @description
@@ -154,7 +153,7 @@ var queueLen = 0;
  */
 function $subs($meteor, $q, $rootScope) {
 
-  function dedubePayloads(payloads) {
+  function dedupePayloads(payloads) {
     return _.uniq(payloads, function(payload) {
       return payload.hashKey;
     });
@@ -187,6 +186,14 @@ function $subs($meteor, $q, $rootScope) {
      */
     _currentSubs: {},
 
+    /**
+     * Root promise used to queue to transition operations. Calling
+     * `transition` does not actually process the transition immediately,
+     * but adds an operation to the queue to perform the transition (FIFO)
+     *
+     * @private
+     * @var Promise
+     */
     _transQ: $q.when(true),
 
     /**
@@ -197,31 +204,39 @@ function $subs($meteor, $q, $rootScope) {
      *          open.
      */
     transition: function(payloads) {
-      var self = this, processed = serializePayloads(payloads);
-      processed = dedubePayloads(processed);
-      ++queueLen;
-      var curLen = queueLen;
+
+      var self = this, processed;
+      processed = serializePayloads(payloads);
+      processed = dedupePayloads(processed);
+
       self._transQ = self._transQ
         .then(function() {
-          console.log('- Processing ' + curLen + ' item in the pr queue');
           var pendingPayloads = self._migrate(processed);
-          return $q.all(_.map(pendingPayloads, function(payload, key) {
-            return $meteor.subscribe.apply($meteor, payload.args)
-              .then(function(handle) {
-                console.log('-- Start sub ' + key + ' in queue item ' + curLen);
-                self._currentSubs[payload.hashKey] = handle;
-              });
+          return $q.all(_.map(pendingPayloads, function(payload) {
+            return self._invokeSub(payload);
           }));
         })
         .catch(function(error) {
-          console.log('- Error on item ' + curLen + ' in queue');
           $rootScope.$broadcast('$subTransitionError', error);
-        })
-        .finally(function() {
-          --queueLen;
-          console.log('- Processed ' + curLen + ' in queue, now at ' + queueLen);
         });
+
       return self._transQ;
+
+    },
+
+    /**
+     * Invokes a subscription from the given payload.
+     *
+     * @private
+     * @param   payload   Object
+     * @return  Promise
+     */
+    _invokeSub: function(payload) {
+      var self = this;
+      return $meteor.subscribe.apply($meteor, payload.args)
+        .then(function(handle) {
+          self._currentSubs[payload.hashKey] = handle;
+        });
     },
 
     /**
@@ -240,9 +255,7 @@ function $subs($meteor, $q, $rootScope) {
         return !self._currentSubs[payload.hashKey];
       });
       _.each(self._currentSubs, function(handle, key) {
-        if (!_.some(nextPayloads, function(p) {
-          return p.hashKey === key;
-        })) {
+        if (!_.some(nextPayloads, function(p) { return p.hashKey === key; })) {
           handle.stop();
           delete self._currentSubs[key];
         }

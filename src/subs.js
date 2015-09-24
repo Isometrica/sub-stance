@@ -14,7 +14,7 @@ angular
  */
 function $subs($meteor, $q, $rootScope) {
 
-  function dedubePayloads(payloads) {
+  function dedupePayloads(payloads) {
     return _.uniq(payloads, function(payload) {
       return payload.hashKey;
     });
@@ -47,6 +47,14 @@ function $subs($meteor, $q, $rootScope) {
      */
     _currentSubs: {},
 
+    /**
+     * Root promise used to queue to transition operations. Calling
+     * `transition` does not actually process the transition immediately,
+     * but adds an operation to the queue to perform the transition (FIFO)
+     *
+     * @private
+     * @var Promise
+     */
     _transQ: $q.when(true),
 
     /**
@@ -57,23 +65,39 @@ function $subs($meteor, $q, $rootScope) {
      *          open.
      */
     transition: function(payloads) {
-      var self = this, processed = serializePayloads(payloads);
-      processed = dedubePayloads(processed);
+
+      var self = this, processed;
+      processed = serializePayloads(payloads);
+      processed = dedupePayloads(processed);
+
       self._transQ = self._transQ
         .then(function() {
           var pendingPayloads = self._migrate(processed);
-          return $q.all(_.map(pendingPayloads, function(payload, key) {
-            return $meteor.subscribe.apply($meteor, payload.args)
-              .then(function(handle) {
-                console.log('-- Start sub ' + key + ' in queue item ' + curLen);
-                self._currentSubs[payload.hashKey] = handle;
-              });
+          return $q.all(_.map(pendingPayloads, function(payload) {
+            return self._invokeSub(payload);
           }));
         })
         .catch(function(error) {
           $rootScope.$broadcast('$subTransitionError', error);
         });
+
       return self._transQ;
+
+    },
+
+    /**
+     * Invokes a subscription from the given payload.
+     *
+     * @private
+     * @param   payload   Object
+     * @return  Promise
+     */
+    _invokeSub: function(payload) {
+      var self = this;
+      return $meteor.subscribe.apply($meteor, payload.args)
+        .then(function(handle) {
+          self._currentSubs[payload.hashKey] = handle;
+        });
     },
 
     /**
@@ -92,9 +116,7 @@ function $subs($meteor, $q, $rootScope) {
         return !self._currentSubs[payload.hashKey];
       });
       _.each(self._currentSubs, function(handle, key) {
-        if (!_.some(nextPayloads, function(p) {
-          return p.hashKey === key;
-        })) {
+        if (!_.some(nextPayloads, function(p) { return p.hashKey === key; })) {
           handle.stop();
           delete self._currentSubs[key];
         }
