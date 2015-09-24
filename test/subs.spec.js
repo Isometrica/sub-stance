@@ -247,9 +247,33 @@ describe("$subs", function() {
 
     });
 
+    it("should not discard subs with a retain count", function() {
+
+    });
+
     xit("should start subscriptions with autorun blocks");
     xit("should re-run autorun blocks");
     // xit("should resolve promise result once all subscriptions have started");
+
+  });
+
+  describe(".need()", function() {
+
+    it("should return existing sub and increment retain count", function() {
+
+    });
+
+    it("should return new sub and attach retain count", function() {});
+
+    it("should decrement retain count on stop", function() {
+
+    });
+
+    it("should discard once retain count is 0", function() {});
+
+    it("should discard if the sub was requested in transition", function() {
+
+    });
 
   });
 

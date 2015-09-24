@@ -101,7 +101,7 @@ function $subs($meteor, $q, $rootScope, $timeout) {
           var pendingPayloads = self._migrate(processed);
           return $q.all(_.map(pendingPayloads, function(payload) {
             return self._invokeSub(payload).then(function(sub) {
-              sub.state = true;
+              sub.$$stateReq = true;
             });
           }));
         })
@@ -115,15 +115,15 @@ function $subs($meteor, $q, $rootScope, $timeout) {
 
     createDescriptorFor: function(key, sub) {
       var self = this;
-      if(sub.retainCount) {
-        ++sub.retainCount;
+      if(_.isUndefined(sub.$$retainCount)) {
+        sub.$$retainCount = 1;
       } else {
-        sub.retainCount = 0;
+        ++sub.$$retainCount;
       }
       return {
         stop: function() {
-          --sub.retainCount;
-          if (!sub.state) {
+          --sub.$$retainCount;
+          if (!sub.$$stateReq && !sub.$$retainCount) {
             self._discardSub(key);
           }
         }
@@ -135,11 +135,11 @@ function $subs($meteor, $q, $rootScope, $timeout) {
           payload = serializePayloads([args.slice(0)]),
           self = this, sub = self._currentSubs[payload.hashKey];
       if (sub) {
-        return $q.resolve(self.createDescriptorFor(sub));
+        return $q.resolve(self.createDescriptorFor(payload.hashKey, sub));
       }
       self._transQ = self._transQ.then(function() {
         return self._invokeSub(payload[0]).then(function(sub) {
-          return self.createDescriptorFor(sub);
+          return self.createDescriptorFor(payload.hashKey, sub);
         });
       });
       return self._transQ;
@@ -182,7 +182,7 @@ function $subs($meteor, $q, $rootScope, $timeout) {
         var compKeys = function(p) { return p.hashKey === key; };
         if (_.some(nextPayloads, compKeys)) {
           self._invalidateDiscardQ(key);
-        } else if(!handle.retainCount) {
+        } else if(!handle.$$retainCount) {
           self._discardSub(key);
         }
       });

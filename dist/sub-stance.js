@@ -160,7 +160,7 @@ function $subs($meteor, $q, $rootScope, $timeout) {
   }
 
   function serializePayloads(payloads) {
-    return _.map(payloads, function(p) {
+    return dedupePayloads(_.map(payloads, function(p) {
       var args;
       if (_.isObject(p)) {
         args = [p.name].concat(p.args);
@@ -171,7 +171,7 @@ function $subs($meteor, $q, $rootScope, $timeout) {
         hashKey: args.join(','),
         args: args
       };
-    });
+    }));
   }
 
   return {
@@ -206,7 +206,6 @@ function $subs($meteor, $q, $rootScope, $timeout) {
           if (sub) {
             sub.stop();
             delete self._currentSubs[key];
-            console.log('Deffered clean up of ' + key);
           }
           self._cleanUpDiscQ(key);
         }, 10000);
@@ -220,7 +219,6 @@ function $subs($meteor, $q, $rootScope, $timeout) {
     _invalidateDiscardQ: function(key) {
       var self = this, discardQ = self._discardQs[key];
       if (discardQ) {
-        console.log('Saved ' + key + '!');
         $timeout.cancel(discardQ);
         self._cleanUpDiscQ(key);
       }
@@ -235,15 +233,15 @@ function $subs($meteor, $q, $rootScope, $timeout) {
      */
     transition: function(payloads) {
 
-      var self = this, processed;
-      processed = serializePayloads(payloads);
-      processed = dedupePayloads(processed);
+      var self = this, processed = serializePayloads(payloads);
 
       self._transQ = self._transQ
         .then(function() {
           var pendingPayloads = self._migrate(processed);
           return $q.all(_.map(pendingPayloads, function(payload) {
-            return self._invokeSub(payload);
+            return self._invokeSub(payload).then(function(sub) {
+              sub.$$stateReq = true;
+            });
           }));
         })
         .catch(function(error) {
@@ -252,6 +250,38 @@ function $subs($meteor, $q, $rootScope, $timeout) {
 
       return self._transQ;
 
+    },
+
+    createDescriptorFor: function(key, sub) {
+      var self = this;
+      if(_.isUndefined(sub.$$retainCount)) {
+        sub.$$retainCount = 0;
+      } else {
+        ++sub.$$retainCount;
+      }
+      return {
+        stop: function() {
+          --sub.$$retainCount;
+          if (!sub.$$stateReq) {
+            self._discardSub(key);
+          }
+        }
+      };
+    },
+
+    need: function() {
+      var args = Array.prototype.slice.call(arguments),
+          payload = serializePayloads([args.slice(0)]),
+          self = this, sub = self._currentSubs[payload.hashKey];
+      if (sub) {
+        return $q.resolve(self.createDescriptorFor(sub));
+      }
+      self._transQ = self._transQ.then(function() {
+        return self._invokeSub(payload[0]).then(function(sub) {
+          return self.createDescriptorFor(sub);
+        });
+      });
+      return self._transQ;
     },
 
     /**
@@ -266,6 +296,7 @@ function $subs($meteor, $q, $rootScope, $timeout) {
       return $meteor.subscribe.apply($meteor, payload.args)
         .then(function(handle) {
           self._currentSubs[payload.hashKey] = handle;
+          return handle;
         });
     },
 
@@ -290,7 +321,7 @@ function $subs($meteor, $q, $rootScope, $timeout) {
         var compKeys = function(p) { return p.hashKey === key; };
         if (_.some(nextPayloads, compKeys)) {
           self._invalidateDiscardQ(key);
-        } else {
+        } else if(!handle.$$retainCount) {
           self._discardSub(key);
         }
       });
