@@ -9,6 +9,49 @@ An angular.js service that creates and maintains Meteor.js subscriptions across 
 - Isolate subscription management functionality: track down and finding bugs relating to subscriptions in once place.
 - Contributions to meteor community - marketing for Isometrica.
 
+### Usage
+
+Declare subscriptions required for your states:
+
+```Javascript
+.state('bookshop', {
+  url: '/books/:bookId/:sort',
+  templateUrl: ...,
+  data: {
+    $subs: [
+      { name: 'books', args: ['sort'] },
+      'favorites'
+    ]
+  }
+});
+```
+
+Configure components that need certain subscriptions to function:
+
+```Javascript
+app.directive('commentsList', function($subs) {
+	return {
+		controller: function($scope, $element, $attrs, $transclude) {
+      ...
+      $subs.needsBind($scope, 'comments', $scope.someParam);
+    }
+  };
+});
+
+app.service('singleton', function($subs) {
+  var descriptor = $subs.need('something');
+  ...
+  ...
+  descriptor.stop();
+});
+```
+
+Additional features:
+
+- Support for inheriting `$sub` config in your states.
+- Never opens more subscriptions than you need to.
+- Subscription stopping is delayed by 10 seconds; requests for a subscriptions will reuse those which are queued for deletion automatically.
+
 ### Problem Domain
 
 - We have a complicated angular-meteor app, composed of many modules requiring a variety of meteor subscriptions.
@@ -118,11 +161,11 @@ Problems:
 - Define the subscriptions available within application states. _DONE_
 - Allow arguments to be passed to subscription configuration. _DONE_
 - Allow these subscriptions to be defined in an autorun computation.
-- Expose an interface through which a component (service, controller, directive, etc.) can request a subscription.
+- Expose an interface through which a component (service, controller, directive, etc.) can request a subscription. _DONE_
 - Handle all subscription cleanup. _DONE_
 - Only close / open new subscriptions when required. Consider:
 
-  - Component A requires a subscription to S. Another component, B, has already requested a subscription to S. Through this interface, both A and B should receive the same subscription handle; only 1 subscription should ever be opened to S.
+  - Component A requires a subscription to S. Another component, B, has already requested a subscription to S. Through this interface, both A and B should receive the same subscription handle; only 1 subscription should ever be opened to S. _DONE_
   - Route A requires a set of subscriptions to be opened, one of which is S. Route B requires a set of subscriptions to be opened, one of which is also S. When the application transitions between the A and B states, a handle to S should never be closed and reopened. _DONE_
 
 ### References
