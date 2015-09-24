@@ -21,7 +21,7 @@ function $subs($meteor, $q, $rootScope, $timeout) {
   }
 
   function serializePayloads(payloads) {
-    return _.map(payloads, function(p) {
+    return dedupePayloads(_.map(payloads, function(p) {
       var args;
       if (_.isObject(p)) {
         args = [p.name].concat(p.args);
@@ -32,7 +32,7 @@ function $subs($meteor, $q, $rootScope, $timeout) {
         hashKey: args.join(','),
         args: args
       };
-    });
+    }));
   }
 
   return {
@@ -94,9 +94,7 @@ function $subs($meteor, $q, $rootScope, $timeout) {
      */
     transition: function(payloads) {
 
-      var self = this, processed;
-      processed = serializePayloads(payloads);
-      processed = dedupePayloads(processed);
+      var self = this, processed = serializePayloads(payloads);
 
       self._transQ = self._transQ
         .then(function() {
@@ -111,6 +109,19 @@ function $subs($meteor, $q, $rootScope, $timeout) {
 
       return self._transQ;
 
+    },
+
+    need: function(scope) {
+      var args = Array.prototype.slice.call(arguments),
+          payload = serializePayloads([args.slice(1)]),
+          self = this;
+      if (self._currentSubs[payload.hashKey]) {
+        return $q.resolve();
+      }
+      self._transQ = self._transQ.then(function() {
+        return self._invokeSub(payload[0]);
+      });
+      return self._transQ;
     },
 
     /**

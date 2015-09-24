@@ -26,3 +26,15 @@
 - Perhaps if they are 'temporary' subscriptions, we could expose a helper method that binds a subscription to a scope and relinquishes it once all scopes that it relates to have been destroyed.
 - I guess then, the problem is that we'd potential start opening / closing subs unnecessarily again.
 - The benefit of the system at the moment is that we only stop subscriptions on state transition.
+
+### Idea 3 - Needing
+
+- `$subs.need(..)` and `$subs.needBind(...)`.
+- Cases:
+  - Need a subscription in a component with access to `$scope`, e.g. a directive or controller
+  - Need full control over the lifetime of a subscription in a singleton service (even across state transitions)
+- Going to focus on `needBind` for now; the case to keep a sub open forever in a service isn't a strong one.
+- Subs required in transition set `state` flag to true.
+- If a `needBind` request is made, a `retainCount` property is attached to the sub handle.
+- On transition, subs are torn down if they not needed by the next state and have a retainCount of > 0
+- If the retain count of a sub hits 0, it is torn down if it is not a `state` sub (i.e. isn't required globally across the entire state).
