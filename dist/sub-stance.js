@@ -43,8 +43,12 @@ angular
  *
  * - Registering a 'data' decorator with the `$stateProvider`. This ensures
  *   that `$subs` are merged correctly with their parent states' `$subs`.
- * - Listening to `$stateChangeStart` on the route scope, and deffering
- *   the event until the $subs have been transitioned (uses `$asyncTransition`).
+ * - Overrides `$state.transitionTo` and ensures that an underlying `$subs.transition`
+ *   completes with the destination state's configuration before allowing the
+ *   the transition to proceed. I've tried many other attempts to achieve this
+ *   behaviour but decorating $state was the most robust solution that I could
+ *   come up with. Until ui.router version 1.0.0 is released, this is what we're
+ *   stuck with.
  *
  * @see https://github.com/christopherthielen/ui-router-extras/blob/master/src/transition.js
  * @copyright Isometrica
@@ -89,49 +93,43 @@ function decorateStateProvider($stateProvider, $provide) {
 
   }
 
-  function transitionToDecorateFn($state, $subs, $rootScope, $q) {
+  function transitionToDecorateFn($state, $subs, $rootScope, $log) {
 
     var transitionTo = $state.transitionTo;
 
     function extractParams(subConf, toParams) {
       var reqParams = flattenConfArgs(subConf);
-      console.log('Turning', toParams);
       _.each(reqParams, function(paramName) {
         if (_.isUndefined(toParams[paramName])) {
           var param = $state.params[paramName];
           if (!param) {
-            // TODO: Log
+            $log.warn('State param ' + paramName + ' doesn\'t exist but $subs requires it.');
           } else {
             toParams[paramName] = param;
           }
         }
       });
-      console.log('Into', toParams);
     }
 
     $state.transitionTo = function(to, toParams, options) {
       var args = Array.prototype.slice.call(arguments),
-          tState = $state.get(to),
-          tData = tState.data,
+          tData = $state.get(to).data,
           payload;
-      if (tState.data) {
-        var subs = tState.data.$subs;
-        console.log('tState', tState);
+      if (tData) {
+        var subs = tData.$subs;
         extractParams(subs, toParams);
         payload = evaluatedConf(subs, toParams);
       }
       return $subs.transition(payload)
         .then(function() {
           return transitionTo.apply($state, args);
-        }, function(error) {
-          $rootScope.$broadcast.call($rootScope, '$subTransitionError', to, toParams, error);
         });
     };
 
     return $state;
 
   }
-  transitionToDecorateFn.$inject = ['$delegate', '$subs', '$rootScope'];
+  transitionToDecorateFn.$inject = ['$delegate', '$subs', '$rootScope', '$log'];
 
   $provide.decorator('$state', transitionToDecorateFn);
   $stateProvider.decorator('data', dataDecorateFn);
@@ -143,6 +141,8 @@ angular
   .module('isa.substance')
   .service('$subs', $subs);
 
+var queueLen = 0;
+
 /**
  * @description
  * Singleton service holding that state of the application's subscriptions.
@@ -152,7 +152,7 @@ angular
  * @copyright Isometrica
  * @author Stephen Fortune
  */
-function $subs($meteor, $q) {
+function $subs($meteor, $q, $rootScope) {
 
   function dedubePayloads(payloads) {
     return _.uniq(payloads, function(payload) {
@@ -187,6 +187,8 @@ function $subs($meteor, $q) {
      */
     _currentSubs: {},
 
+    _transQ: $q.when(true),
+
     /**
      * Transition to a new subscription state.
      *
@@ -197,12 +199,29 @@ function $subs($meteor, $q) {
     transition: function(payloads) {
       var self = this, processed = serializePayloads(payloads);
       processed = dedubePayloads(processed);
-      var pendingPayloads = self._migrate(processed);
-      return $q.all(_.map(pendingPayloads, function(payload) {
-        return $meteor.subscribe.apply($meteor, payload.args).then(function(handle) {
-          self._currentSubs[payload.hashKey] = handle;
+      ++queueLen;
+      var curLen = queueLen;
+      self._transQ = self._transQ
+        .then(function() {
+          console.log('- Processing ' + curLen + ' item in the pr queue');
+          var pendingPayloads = self._migrate(processed);
+          return $q.all(_.map(pendingPayloads, function(payload, key) {
+            return $meteor.subscribe.apply($meteor, payload.args)
+              .then(function(handle) {
+                console.log('-- Start sub ' + key + ' in queue item ' + curLen);
+                self._currentSubs[payload.hashKey] = handle;
+              });
+          }));
+        })
+        .catch(function(error) {
+          console.log('- Error on item ' + curLen + ' in queue');
+          $rootScope.$broadcast('$subTransitionError', error);
+        })
+        .finally(function() {
+          --queueLen;
+          console.log('- Processed ' + curLen + ' in queue, now at ' + queueLen);
         });
-      }));
+      return self._transQ;
     },
 
     /**
@@ -235,5 +254,5 @@ function $subs($meteor, $q) {
 
 }
 
-$subs.$inject = ['$meteor', '$q'];
+$subs.$inject = ['$meteor', '$q', '$rootScope'];
 })(window, window.angular);

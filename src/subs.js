@@ -12,7 +12,7 @@ angular
  * @copyright Isometrica
  * @author Stephen Fortune
  */
-function $subs($meteor, $q) {
+function $subs($meteor, $q, $rootScope) {
 
   function dedubePayloads(payloads) {
     return _.uniq(payloads, function(payload) {
@@ -47,6 +47,8 @@ function $subs($meteor, $q) {
      */
     _currentSubs: {},
 
+    _transQ: $q.when(true),
+
     /**
      * Transition to a new subscription state.
      *
@@ -57,12 +59,21 @@ function $subs($meteor, $q) {
     transition: function(payloads) {
       var self = this, processed = serializePayloads(payloads);
       processed = dedubePayloads(processed);
-      var pendingPayloads = self._migrate(processed);
-      return $q.all(_.map(pendingPayloads, function(payload) {
-        return $meteor.subscribe.apply($meteor, payload.args).then(function(handle) {
-          self._currentSubs[payload.hashKey] = handle;
+      self._transQ = self._transQ
+        .then(function() {
+          var pendingPayloads = self._migrate(processed);
+          return $q.all(_.map(pendingPayloads, function(payload, key) {
+            return $meteor.subscribe.apply($meteor, payload.args)
+              .then(function(handle) {
+                console.log('-- Start sub ' + key + ' in queue item ' + curLen);
+                self._currentSubs[payload.hashKey] = handle;
+              });
+          }));
+        })
+        .catch(function(error) {
+          $rootScope.$broadcast('$subTransitionError', error);
         });
-      }));
+      return self._transQ;
     },
 
     /**
@@ -95,4 +106,4 @@ function $subs($meteor, $q) {
 
 }
 
-$subs.$inject = ['$meteor', '$q'];
+$subs.$inject = ['$meteor', '$q', '$rootScope'];

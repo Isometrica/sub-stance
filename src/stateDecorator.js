@@ -30,8 +30,12 @@ angular
  *
  * - Registering a 'data' decorator with the `$stateProvider`. This ensures
  *   that `$subs` are merged correctly with their parent states' `$subs`.
- * - Listening to `$stateChangeStart` on the route scope, and deffering
- *   the event until the $subs have been transitioned (uses `$asyncTransition`).
+ * - Overrides `$state.transitionTo` and ensures that an underlying `$subs.transition`
+ *   completes with the destination state's configuration before allowing the
+ *   the transition to proceed. I've tried many other attempts to achieve this
+ *   behaviour but decorating $state was the most robust solution that I could
+ *   come up with. Until ui.router version 1.0.0 is released, this is what we're
+ *   stuck with.
  *
  * @see https://github.com/christopherthielen/ui-router-extras/blob/master/src/transition.js
  * @copyright Isometrica
@@ -76,7 +80,7 @@ function decorateStateProvider($stateProvider, $provide) {
 
   }
 
-  function transitionToDecorateFn($state, $subs, $rootScope, $log) {
+  function transitionToDecorateFn($state, $subs, $log) {
 
     var transitionTo = $state.transitionTo;
 
@@ -103,18 +107,17 @@ function decorateStateProvider($stateProvider, $provide) {
         extractParams(subs, toParams);
         payload = evaluatedConf(subs, toParams);
       }
-      return $subs.transition(payload)
+      return $subs
+        .transition(payload)
         .then(function() {
           return transitionTo.apply($state, args);
-        }, function(error) {
-          $rootScope.$broadcast.call($rootScope, '$subTransitionError', to, toParams, error);
         });
     };
 
     return $state;
 
   }
-  transitionToDecorateFn.$inject = ['$delegate', '$subs', '$rootScope', '$log'];
+  transitionToDecorateFn.$inject = ['$delegate', '$subs', '$log'];
 
   $provide.decorator('$state', transitionToDecorateFn);
   $stateProvider.decorator('data', dataDecorateFn);
