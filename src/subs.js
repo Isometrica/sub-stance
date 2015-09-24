@@ -69,7 +69,7 @@ function $subs($meteor, $q, $rootScope, $timeout) {
             delete self._currentSubs[key];
           }
           self._cleanUpDiscQ(key);
-        }, 5000);
+        }, 10000);
       }
     },
 
@@ -83,7 +83,6 @@ function $subs($meteor, $q, $rootScope, $timeout) {
         $timeout.cancel(discardQ);
         self._cleanUpDiscQ(key);
       }
-      return !!discardQ;
     },
 
     /**
@@ -144,6 +143,8 @@ function $subs($meteor, $q, $rootScope, $timeout) {
       var delta = _.filter(nextPayloads, function(payload) {
         return !self._currentSubs[payload.hashKey];
       });
+      /// @note Is there a problem with atomicity here? E.g. if the timeout
+      /// completes after _.some but before self._invalidateDiscardQ ?
       _.each(self._currentSubs, function(handle, key) {
         var compKeys = function(p) { return p.hashKey === key; };
         if (_.some(nextPayloads, compKeys)) {
