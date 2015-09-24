@@ -113,7 +113,7 @@ function $subs($meteor, $q, $rootScope, $timeout) {
 
     },
 
-    createDescriptorFor: function(key, sub) {
+    _createDescriptorFor: function(key, sub) {
       var self = this;
       if(_.isUndefined(sub.$$retainCount)) {
         sub.$$retainCount = 1;
@@ -138,13 +138,15 @@ function $subs($meteor, $q, $rootScope, $timeout) {
     need: function() {
       var args = Array.prototype.slice.call(arguments),
           payload = { hashKey: args.join(','), args: args },
-          self = this, sub = self._currentSubs[payload.hashKey];
-      if (sub) {
-        return $q.resolve(self.createDescriptorFor(payload.hashKey, sub));
-      }
+          self = this;
       self._transQ = self._transQ.then(function() {
+        var sub = self._currentSubs[payload.hashKey];
+        if (sub) {
+          self._invalidateDiscardQ(payload.hashKey);
+          return $q.resolve(self._createDescriptorFor(payload.hashKey, sub));
+        }
         return self._invokeSub(payload).then(function(sub) {
-          return self.createDescriptorFor(payload.hashKey, sub);
+          return self._createDescriptorFor(payload.hashKey, sub);
         });
       });
       return self._transQ;

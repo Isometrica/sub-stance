@@ -202,6 +202,7 @@ function $subs($meteor, $q, $rootScope, $timeout) {
       var self = this;
       if (!self._discardQs[key]) {
         self._discardQs[key] = $timeout(function() {
+          console.log('--- Destroying', key);
           var sub = self._currentSubs[key];
           if (sub) {
             sub.stop();
@@ -252,7 +253,7 @@ function $subs($meteor, $q, $rootScope, $timeout) {
 
     },
 
-    createDescriptorFor: function(key, sub) {
+    _createDescriptorFor: function(key, sub) {
       var self = this;
       if(_.isUndefined(sub.$$retainCount)) {
         sub.$$retainCount = 1;
@@ -267,7 +268,9 @@ function $subs($meteor, $q, $rootScope, $timeout) {
           }
           this._dead = true;
           --sub.$$retainCount;
+          console.log('-- Stopping handle', key, sub.$$retainCount);
           if (!sub.$$stateReq && !sub.$$retainCount) {
+            console.log('-- Discarding handle', key, sub.$$retainCount);
             self._discardSub(key);
           }
         }
@@ -277,13 +280,18 @@ function $subs($meteor, $q, $rootScope, $timeout) {
     need: function() {
       var args = Array.prototype.slice.call(arguments),
           payload = { hashKey: args.join(','), args: args },
-          self = this, sub = self._currentSubs[payload.hashKey];
-      if (sub) {
-        return $q.resolve(self.createDescriptorFor(payload.hashKey, sub));
-      }
+          self = this;
       self._transQ = self._transQ.then(function() {
+        console.log('-- Needing', payload.hashKey);
+        var sub = self._currentSubs[payload.hashKey];
+        if (sub) {
+          console.log('-- Existing');
+          self._invalidateDiscardQ(payload.hashKey);
+          return $q.resolve(self._createDescriptorFor(payload.hashKey, sub));
+        }
+        console.log('-- Invoking new');
         return self._invokeSub(payload).then(function(sub) {
-          return self.createDescriptorFor(payload.hashKey, sub);
+          return self._createDescriptorFor(payload.hashKey, sub);
         });
       });
       return self._transQ;
