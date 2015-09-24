@@ -99,7 +99,6 @@ function decorateStateProvider($stateProvider, $provide) {
 
     function extractParams(subConf, toParams) {
       var reqParams = flattenConfArgs(subConf);
-      console.log('Extracting params', $state.params, toParams);
       _.each(reqParams, function(paramName) {
         if (_.isUndefined(toParams[paramName])) {
           var param = $state.params[paramName];
@@ -116,7 +115,6 @@ function decorateStateProvider($stateProvider, $provide) {
       var args = Array.prototype.slice.call(arguments),
           tData = $state.get(to).data,
           payload;
-      console.log('Transitioning to ' + to, tData);
       if (tData) {
         var subs = tData.$subs;
         extractParams(subs, toParams);
@@ -153,7 +151,7 @@ angular
  * @copyright Isometrica
  * @author Stephen Fortune
  */
-function $subs($meteor, $q, $rootScope) {
+function $subs($meteor, $q, $rootScope, $timeout) {
 
   function dedupePayloads(payloads) {
     return _.uniq(payloads, function(payload) {
@@ -197,6 +195,34 @@ function $subs($meteor, $q, $rootScope) {
      * @var Promise
      */
     _transQ: $q.when(true),
+
+    _discardQs: {},
+
+    _discardSub: function(key) {
+      var self = this;
+      if (!self._discardQs[key]) {
+        self._discardQs[key] = $timeout(function() {
+          var sub = self._currentSubs[key];
+          if (sub) {
+            sub.stop();
+            delete sub[key];
+          }
+          self._cleanUpDiscQ(key);
+        }, 10000);
+      }
+    },
+
+    _cleanUpDiscQ: function(key) {
+      delete this._discardQs[key];
+    },
+
+    _invalidateDiscardQ: function(key) {
+      var self = this, discardQ = self._discardQs[key];
+      if (discardQ) {
+        $timeout.cancel(discardQ);
+        self._cleanUpDiscQ(key);
+      }
+    },
 
     /**
      * Transition to a new subscription state.
@@ -269,5 +295,5 @@ function $subs($meteor, $q, $rootScope) {
 
 }
 
-$subs.$inject = ['$meteor', '$q', '$rootScope'];
+$subs.$inject = ['$meteor', '$q', '$rootScope', '$timeout'];
 })(window, window.angular);

@@ -12,7 +12,7 @@ angular
  * @copyright Isometrica
  * @author Stephen Fortune
  */
-function $subs($meteor, $q, $rootScope) {
+function $subs($meteor, $q, $rootScope, $timeout) {
 
   function dedupePayloads(payloads) {
     return _.uniq(payloads, function(payload) {
@@ -57,6 +57,34 @@ function $subs($meteor, $q, $rootScope) {
      */
     _transQ: $q.when(true),
 
+    _discardQs: {},
+
+    _discardSub: function(key) {
+      var self = this;
+      if (!self._discardQs[key]) {
+        self._discardQs[key] = $timeout(function() {
+          var sub = self._currentSubs[key];
+          if (sub) {
+            sub.stop();
+            delete sub[key];
+          }
+          self._cleanUpDiscQ(key);
+        }, 5000);
+      }
+    },
+
+    _cleanUpDiscQ: function(key) {
+      delete this._discardQs[key];
+    },
+
+    _invalidateDiscardQ: function(key) {
+      var self = this, discardQ = self._discardQs[key];
+      if (discardQ) {
+        $timeout.cancel(discardQ);
+        self._cleanUpDiscQ(key);
+      }
+    },
+
     /**
      * Transition to a new subscription state.
      *
@@ -94,6 +122,7 @@ function $subs($meteor, $q, $rootScope) {
      */
     _invokeSub: function(payload) {
       var self = this;
+      self._invalidateDiscardQ(payload.hashKey);
       return $meteor.subscribe.apply($meteor, payload.args)
         .then(function(handle) {
           self._currentSubs[payload.hashKey] = handle;
@@ -117,8 +146,7 @@ function $subs($meteor, $q, $rootScope) {
       });
       _.each(self._currentSubs, function(handle, key) {
         if (!_.some(nextPayloads, function(p) { return p.hashKey === key; })) {
-          handle.stop();
-          delete self._currentSubs[key];
+          self._discardSub(key);
         }
       });
       return delta;
@@ -128,4 +156,4 @@ function $subs($meteor, $q, $rootScope) {
 
 }
 
-$subs.$inject = ['$meteor', '$q', '$rootScope'];
+$subs.$inject = ['$meteor', '$q', '$rootScope', '$timeout'];
