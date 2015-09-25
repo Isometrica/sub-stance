@@ -76,6 +76,7 @@ function decorateStateProvider($stateProvider, $provide) {
         }
       }
     }
+    console.log('Data: for ' + state.name, state.data);
     return parentFn(state);
 
   }
@@ -100,10 +101,10 @@ function decorateStateProvider($stateProvider, $provide) {
 
     $state.transitionTo = function(to, toParams, options) {
       var args = Array.prototype.slice.call(arguments),
-          tData = $state.get(to).data,
+          toState = $state.get(to, options ? options.relative : null),
           payload;
-      if (tData) {
-        var subs = tData.$subs;
+      if (toState && toState.data) {
+        var subs = toState.data.$subs;
         extractParams(subs, toParams);
         payload = evaluatedConf(subs, toParams);
       }

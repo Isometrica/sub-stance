@@ -89,6 +89,7 @@ function decorateStateProvider($stateProvider, $provide) {
         }
       }
     }
+    console.log('Data: for ' + state.name, state.data);
     return parentFn(state);
 
   }
@@ -113,10 +114,11 @@ function decorateStateProvider($stateProvider, $provide) {
 
     $state.transitionTo = function(to, toParams, options) {
       var args = Array.prototype.slice.call(arguments),
-          tData = $state.get(to).data,
+          toState = $state.get(to, options ? options.relative : null),
           payload;
-      if (tData) {
-        var subs = tData.$subs;
+      console.log('To state', toState);
+      if (toState && toState.data) {
+        var subs = toState.data.$subs;
         extractParams(subs, toParams);
         payload = evaluatedConf(subs, toParams);
       }
@@ -210,9 +212,12 @@ function $subs($meteor, $q, $rootScope, $timeout) {
     _discQs: {},
 
     _discard: function(key) {
+      console.log('-- Posting discard for ' + key);
       var self = this;
       if (!self._discarding(key)) {
+        console.log('-- Can discard');
         self._discQs[key] = $timeout(function() {
+          console.log('--- Discarding ' + key);
           var sub = self._currentSubs[key];
           if (sub) {
             sub.stop();
@@ -232,6 +237,7 @@ function $subs($meteor, $q, $rootScope, $timeout) {
     },
 
     _ensureKeep: function(key) {
+      console.log('-- Actually, keep ' + key);
       var pr = this._discarding(key);
       if (pr) {
         $timeout.cancel(pr);
@@ -247,16 +253,13 @@ function $subs($meteor, $q, $rootScope, $timeout) {
      *          open.
      */
     transition: function(payloads) {
-
       var self = this, processed = serializeArr(payloads);
-      console.log('Payloads', payloads);
-
+      console.log('- Transitioning to ', _.map(processed, function(p) { return p.hashKey; }));
       return self._pushOp(function() {
         return self._migrate(processed);
       }, function(error) {
         $rootScope.$broadcast('$subTransitionError', error);
       });
-
     },
 
     _createDescriptor: function(key, sub) {
@@ -274,7 +277,9 @@ function $subs($meteor, $q, $rootScope, $timeout) {
           }
           this._dead = true;
           --sub.$$retainCount;
+          console.log('- Stopping descriptor ' + key, sub);
           if (!sub.$$stateReq && !sub.$$retainCount) {
+            console.log('- Can discard this sub now');
             self._discard(key);
           }
         }
@@ -345,13 +350,12 @@ function $subs($meteor, $q, $rootScope, $timeout) {
       /// could use some sort of mutex.
       /// @note If the $timeout for discard ops is 0, we'd actually be
       /// mutating `_currentSubs` while we enumerate it, which is bad.
-      /// Just bear in mind. 
+      /// Just bear in mind.
       _.each(self._currentSubs, function(handle, key) {
         var compKeys = function(p) { return p.hashKey === key; },
             isNext = _.some(nextPayloads, compKeys);
         if (isNext) {
           self._ensureKeep(key);
-          handle.$$stateReq = true;
         } else if (!handle.$$retainCount) {
           self._discard(key);
         }

@@ -71,9 +71,12 @@ function $subs($meteor, $q, $rootScope, $timeout) {
     _discQs: {},
 
     _discard: function(key) {
+      console.log('-- Posting discard for ' + key);
       var self = this;
       if (!self._discarding(key)) {
+        console.log('-- Can discard');
         self._discQs[key] = $timeout(function() {
+          console.log('--- Discarding ' + key);
           var sub = self._currentSubs[key];
           if (sub) {
             sub.stop();
@@ -93,6 +96,7 @@ function $subs($meteor, $q, $rootScope, $timeout) {
     },
 
     _ensureKeep: function(key) {
+      console.log('-- Actually, keep ' + key);
       var pr = this._discarding(key);
       if (pr) {
         $timeout.cancel(pr);
@@ -108,15 +112,13 @@ function $subs($meteor, $q, $rootScope, $timeout) {
      *          open.
      */
     transition: function(payloads) {
-
       var self = this, processed = serializeArr(payloads);
-
+      console.log('- Transitioning to ', _.map(processed, function(p) { return p.hashKey; }));
       return self._pushOp(function() {
         return self._migrate(processed);
       }, function(error) {
         $rootScope.$broadcast('$subTransitionError', error);
       });
-
     },
 
     _createDescriptor: function(key, sub) {
@@ -134,7 +136,9 @@ function $subs($meteor, $q, $rootScope, $timeout) {
           }
           this._dead = true;
           --sub.$$retainCount;
+          console.log('- Stopping descriptor ' + key, sub);
           if (!sub.$$stateReq && !sub.$$retainCount) {
+            console.log('- Can discard this sub now');
             self._discard(key);
           }
         }
@@ -211,7 +215,6 @@ function $subs($meteor, $q, $rootScope, $timeout) {
             isNext = _.some(nextPayloads, compKeys);
         if (isNext) {
           self._ensureKeep(key);
-          handle.$$stateReq = true;
         } else if (!handle.$$retainCount) {
           self._discard(key);
         }
