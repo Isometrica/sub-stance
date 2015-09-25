@@ -31,7 +31,7 @@ Configure components that need certain subscriptions to function:
 ```Javascript
 app.directive('commentsList', function($subs) {
 	return {
-		controller: function($scope, $element, $attrs, $transclude) {
+    controller: function($scope, $element, $attrs, $transclude) {
       ...
       $subs.needsBind($scope, 'comments', $scope.someParam);
     }
@@ -49,8 +49,8 @@ app.service('singleton', function($subs) {
 Additional features:
 
 - Support for inheriting `$sub` config in your states.
-- Never opens more subscriptions than you need to.
-- Subscription stopping is delayed by 10 seconds; requests for a subscriptions will reuse those which are queued for deletion automatically.
+- Never opens more subscriptions than you need.
+- Subscription stopping is delayed by 10 seconds; requests for subscriptions will reuse those which are queued for deletion automatically.
 
 ### Problem Domain
 

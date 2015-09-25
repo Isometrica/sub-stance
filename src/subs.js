@@ -20,19 +20,23 @@ function $subs($meteor, $q, $rootScope, $timeout) {
     });
   }
 
-  function serializePayloads(payloads) {
-    return dedupePayloads(_.map(payloads, function(p) {
-      var args;
-      if (_.isObject(p)) {
-        args = [p.name].concat(p.args);
-      } else {
-        args = [p];
-      }
-      return {
-        hashKey: args.join(','),
-        args: args
-      };
-    }));
+  function serializePayload(p) {
+    var args;
+    if (_.isArray(p)) {
+      args = p;
+    } else if (_.isObject(p)) {
+      args = [p.name].concat(p.args);
+    } else {
+      args = [p];
+    }
+    return {
+      hashKey: args.join(','),
+      args: args
+    };
+  }
+
+  function serializeArr(arr) {
+    return dedupePayloads(_.map(arr, serializePayload));
   }
 
   return {
@@ -55,33 +59,44 @@ function $subs($meteor, $q, $rootScope, $timeout) {
      * @private
      * @var Promise
      */
-    _transQ: $q.when(true),
+    _opsQ: $q.when(true),
 
-    _discardQs: {},
+    _pushOp: function(successFn, failFn) {
+      this._opsQ = this._opsQ
+        .then(successFn)
+        .catch(failFn);
+      return this._opsQ;
+    },
 
-    _discardSub: function(key) {
+    _discQs: {},
+
+    _discard: function(key) {
       var self = this;
-      if (!self._discardQs[key]) {
-        self._discardQs[key] = $timeout(function() {
+      if (!self._discarding(key)) {
+        self._discQs[key] = $timeout(function() {
           var sub = self._currentSubs[key];
           if (sub) {
             sub.stop();
             delete self._currentSubs[key];
           }
-          self._cleanUpDiscQ(key);
+          self._purgeDisc(key);
         }, 10000);
       }
     },
 
-    _cleanUpDiscQ: function(key) {
-      delete this._discardQs[key];
+    _discarding: function(key) {
+      return this._discQs[key];
     },
 
-    _invalidateDiscardQ: function(key) {
-      var pr = this._discardQs[key];
+    _purgeDisc: function(key) {
+      delete this._discQs[key];
+    },
+
+    _ensureKeep: function(key) {
+      var pr = this._discarding(key);
       if (pr) {
         $timeout.cancel(pr);
-        this._cleanUpDiscQ(key);
+        this._purgeDisc(key);
       }
     },
 
@@ -94,26 +109,17 @@ function $subs($meteor, $q, $rootScope, $timeout) {
      */
     transition: function(payloads) {
 
-      var self = this, processed = serializePayloads(payloads);
+      var self = this, processed = serializeArr(payloads);
 
-      self._transQ = self._transQ
-        .then(function() {
-          var pendingPayloads = self._migrate(processed);
-          return $q.all(_.map(pendingPayloads, function(payload) {
-            return self._invokeSub(payload).then(function(sub) {
-              sub.$$stateReq = true;
-            });
-          }));
-        })
-        .catch(function(error) {
-          $rootScope.$broadcast('$subTransitionError', error);
-        });
-
-      return self._transQ;
+      return self._pushOp(function() {
+        return self._migrate(processed);
+      }, function(error) {
+        $rootScope.$broadcast('$subTransitionError', error);
+      });
 
     },
 
-    _createDescriptorFor: function(key, sub) {
+    _createDescriptor: function(key, sub) {
       var self = this;
       if(_.isUndefined(sub.$$retainCount)) {
         sub.$$retainCount = 1;
@@ -129,7 +135,7 @@ function $subs($meteor, $q, $rootScope, $timeout) {
           this._dead = true;
           --sub.$$retainCount;
           if (!sub.$$stateReq && !sub.$$retainCount) {
-            self._discardSub(key);
+            self._discard(key);
           }
         }
       };
@@ -137,19 +143,19 @@ function $subs($meteor, $q, $rootScope, $timeout) {
 
     need: function() {
       var args = Array.prototype.slice.call(arguments),
-          payload = { hashKey: args.join(','), args: args },
+          payload = serializePayload(args),
           self = this;
-      self._transQ = self._transQ.then(function() {
+      return self._pushOp(function() {
         var sub = self._currentSubs[payload.hashKey];
         if (sub) {
-          self._invalidateDiscardQ(payload.hashKey);
-          return $q.resolve(self._createDescriptorFor(payload.hashKey, sub));
+          self._ensureKeep(payload.hashKey);
+          var descriptor = self._createDescriptor(payload.hashKey, sub);
+          return $q.resolve(descriptor);
         }
         return self._invokeSub(payload).then(function(sub) {
-          return self._createDescriptorFor(payload.hashKey, sub);
+          return self._createDescriptor(payload.hashKey, sub);
         });
       });
-      return self._transQ;
     },
 
     needBind: function(scope) {
@@ -190,22 +196,36 @@ function $subs($meteor, $q, $rootScope, $timeout) {
      */
     _migrate: function(nextPayloads) {
       var self = this;
-      var delta = _.filter(nextPayloads, function(payload) {
-        return !(self._currentSubs[payload.hashKey] || self._discardQs[payload.hashKey]);
+      var pending = _.filter(nextPayloads, function(payload) {
+        return !self._currentSubs[payload.hashKey];
       });
+      /// Teardown subs that are no longer required by the application
       /// @note Is there a problem with atomicity here? E.g. if the timeout
-      /// completes after _.some but before self._invalidateDiscardQ ?
+      /// completes after _.some but before self._ensureKeep? Perhaps we
+      /// could use some sort of mutex.
+      /// @note If the $timeout for discard ops is 0, we'd actually be
+      /// mutating `_currentSubs` while we enumerate it, which is bad.
+      /// Just bear in mind.
       _.each(self._currentSubs, function(handle, key) {
         var compKeys = function(p) { return p.hashKey === key; },
-            keepSub = handle.$$retainCount || _.some(nextPayloads, compKeys),
-            discarded = self._discardQs[key];
-        if (keepSub && discarded) {
-          self._invalidateDiscardQ(key);
-        } else if(!keepSub && !discarded) {
-          self._discardSub(key);
+            isNext = _.some(nextPayloads, compKeys);
+        if (isNext) {
+          self._ensureKeep(key);
+          handle.$$stateReq = true;
+        } else if (!handle.$$retainCount) {
+          self._discard(key);
         }
+        handle.$$stateReq = isNext;
       });
-      return delta;
+      /// Invoke new subs that are required, ensuring that they are marked
+      /// as being required throughout the entire state (i.e. won't be discarded
+      /// when their retain count hits 0).
+      var qs = _.map(pending, function(payload) {
+        return self._invokeSub(payload).then(function(sub) {
+          sub.$$stateReq = true;
+        });
+      });
+      return $q.all(qs);
     }
 
   };
