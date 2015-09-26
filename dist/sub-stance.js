@@ -114,9 +114,8 @@ function decorateStateProvider($stateProvider, $provide) {
 
     $state.transitionTo = function(to, toParams, options) {
       var args = Array.prototype.slice.call(arguments),
-          toState = $state.get(to, options ? options.relative : null),
+          toState = $state.get(to),
           payload;
-      console.log('To state', toState);
       if (toState && toState.data) {
         var subs = toState.data.$subs;
         extractParams(subs, toParams);

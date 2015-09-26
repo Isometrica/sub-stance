@@ -188,6 +188,59 @@ describe("$stateProvider", function() {
 
     });
 
+    it("should handle relative state names", function() {
+
+      $stateProvider
+        .state('base', {
+          template: '<ui-view/>',
+          url: '/base',
+          data: {
+            $subs: [ 'bSub' ]
+          }
+        })
+        .state('base.d1', {
+          template: '<ui-view/>',
+          url: '/derived1',
+          data: {
+            $subs: [ 'd1Sub' ]
+          }
+        })
+        .state('base.d2', {
+          template: '<ui-view/>',
+          url: '/derived2',
+          data: {
+            $subs: [ 'd2Sub' ]
+          }
+        });
+
+      $state.go('base.d1');
+      $rootScope.$digest();
+
+      $state.go('^.d2');
+      $rootScope.$digest();
+
+      expect($subs.transition.calls.argsFor(1)).toEqual([[
+        'bSub',
+        'd2Sub'
+      ]]);
+
+      $state.go('^');
+      $rootScope.$digest();
+
+      expect($subs.transition.calls.argsFor(2)).toEqual([[
+        'bSub'
+      ]]);
+
+      $state.go('.d1');
+      $rootScope.$digest();
+
+      expect($subs.transition.calls.argsFor(3)).toEqual([[
+        'bSub',
+        'd1Sub'
+      ]]);
+
+    });
+
   });
 
 });
