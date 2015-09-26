@@ -213,30 +213,12 @@ describe("$stateProvider", function() {
           }
         });
 
-      $state.go('base.d1');
+      $state.transitionTo('.d2', {}, { inherit: true, relative: $state.get('base') });
       $rootScope.$digest();
 
-      $state.go('^.d2');
-      $rootScope.$digest();
-
-      expect($subs.transition.calls.argsFor(1)).toEqual([[
+      expect($subs.transition.calls.argsFor(0)).toEqual([[
         'bSub',
         'd2Sub'
-      ]]);
-
-      $state.go('^');
-      $rootScope.$digest();
-
-      expect($subs.transition.calls.argsFor(2)).toEqual([[
-        'bSub'
-      ]]);
-
-      $state.go('.d1');
-      $rootScope.$digest();
-
-      expect($subs.transition.calls.argsFor(3)).toEqual([[
-        'bSub',
-        'd1Sub'
       ]]);
 
     });
