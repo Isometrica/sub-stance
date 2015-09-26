@@ -76,7 +76,6 @@ function decorateStateProvider($stateProvider, $provide) {
         }
       }
     }
-    console.log('Data: for ' + state.name, state.data);
     return parentFn(state);
 
   }

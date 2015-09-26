@@ -89,7 +89,6 @@ function decorateStateProvider($stateProvider, $provide) {
         }
       }
     }
-    console.log('Data: for ' + state.name, state.data);
     return parentFn(state);
 
   }
@@ -152,7 +151,7 @@ angular
  * @copyright Isometrica
  * @author Stephen Fortune
  */
-function $subs($meteor, $q, $rootScope, $timeout) {
+function $subs($meteor, $q, $rootScope, $timeout, $log) {
 
   function dedupePayloads(payloads) {
     return _.uniq(payloads, function(payload) {
@@ -211,12 +210,12 @@ function $subs($meteor, $q, $rootScope, $timeout) {
     _discQs: {},
 
     _discard: function(key) {
-      console.log('-- Posting discard for ' + key);
+      $log.info('-- Posting discard for ' + key);
       var self = this;
       if (!self._discarding(key)) {
-        console.log('-- Can discard');
+        $log.info('-- Can discard');
         self._discQs[key] = $timeout(function() {
-          console.log('--- Discarding ' + key);
+          $log.info('--- Discarding ' + key);
           var sub = self._currentSubs[key];
           if (sub) {
             sub.stop();
@@ -236,9 +235,10 @@ function $subs($meteor, $q, $rootScope, $timeout) {
     },
 
     _ensureKeep: function(key) {
-      console.log('-- Actually, keep ' + key);
+      $log.info('-- Ensure ' + key + ' is kept.');
       var pr = this._discarding(key);
       if (pr) {
+        $log.info('-- Saved from delete!');
         $timeout.cancel(pr);
         this._purgeDisc(key);
       }
@@ -253,7 +253,7 @@ function $subs($meteor, $q, $rootScope, $timeout) {
      */
     transition: function(payloads) {
       var self = this, processed = serializeArr(payloads);
-      console.log('- Transitioning to ', _.map(processed, function(p) { return p.hashKey; }));
+      $log.info('- Transitioning to ', _.map(processed, function(p) { return p.hashKey; }));
       return self._pushOp(function() {
         return self._migrate(processed);
       }, function(error) {
@@ -276,9 +276,9 @@ function $subs($meteor, $q, $rootScope, $timeout) {
           }
           this._dead = true;
           --sub.$$retainCount;
-          console.log('- Stopping descriptor ' + key, sub);
+          $log.info('- Stopping descriptor ' + key);
           if (!sub.$$stateReq && !sub.$$retainCount) {
-            console.log('- Can discard this sub now');
+            $log.info('- Actually discarding this sub now');
             self._discard(key);
           }
         }
@@ -375,5 +375,5 @@ function $subs($meteor, $q, $rootScope, $timeout) {
 
 }
 
-$subs.$inject = ['$meteor', '$q', '$rootScope', '$timeout'];
+$subs.$inject = ['$meteor', '$q', '$rootScope', '$timeout', '$log'];
 })(window, window.angular);
