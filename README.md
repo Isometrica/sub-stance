@@ -172,6 +172,7 @@ Problems:
 
 - [SubsManager](https://github.com/kadirahq/subs-manager)
 - [Iron.Router](https://github.com/iron-meteor/iron-router)
+- [Tacker Manual](https://github.com/meteor/meteor/wiki/Tracker-Manual), specifically the [Wait and See Method documentation](https://github.com/meteor/meteor/wiki/Tracker-Manual#taking-a-wait-and-see-approach)
 
 ### Main Dependencies
 
