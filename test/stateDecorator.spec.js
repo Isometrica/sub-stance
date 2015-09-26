@@ -204,21 +204,14 @@ describe("$stateProvider", function() {
           data: {
             $subs: [ 'd1Sub' ]
           }
-        })
-        .state('base.d2', {
-          template: '<ui-view/>',
-          url: '/derived2',
-          data: {
-            $subs: [ 'd2Sub' ]
-          }
         });
 
-      $state.transitionTo('.d2', {}, { inherit: true, relative: $state.get('base') });
+      $state.transitionTo('.d1', {}, { inherit: true, relative: $state.get('base') });
       $rootScope.$digest();
 
       expect($subs.transition.calls.argsFor(0)).toEqual([[
         'bSub',
-        'd2Sub'
+        'd1Sub'
       ]]);
 
     });
