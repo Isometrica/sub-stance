@@ -12,7 +12,7 @@ angular
  * @copyright Isometrica
  * @author Stephen Fortune
  */
-function $subs($meteor, $q, $rootScope, $timeout, $log) {
+function $subs($meteor, $q, $rootScope, $timeout, $log, $injector) {
 
   function dedupePayloads(payloads) {
     return _.uniq(payloads, function(payload) {
@@ -39,7 +39,7 @@ function $subs($meteor, $q, $rootScope, $timeout, $log) {
     return dedupePayloads(_.map(arr, serializePayload));
   }
 
-  return {
+  var $Subs = {
 
     /**
      * Current active subsctipions - their keys uniquely identify the
@@ -234,6 +234,39 @@ function $subs($meteor, $q, $rootScope, $timeout, $log) {
 
   };
 
+  // TODO: How do we wrap the first op in a promise?
+  // TODO: How do we integrate this with migrate and transition? The problem is
+  // those methods want to give a guarnetee that the subs are open before pr is
+  // resolved. We need some way for this to return a promise which is resolved
+  // on first subscription invocation..
+  // TODO: How / when do we clean this up?
+  // -- If its a state required sub, cleanup on next state transition
+  // -- If its retain count hits zero, like need subs
+  // -- Is there a way that we can just listen to an event for when this is
+  //    stopped and cleanup then ?
+  $Subs._registerReactivePayload = function(payloadFn) {
+    var rp = { fn: payloadFn };
+    rp.comp = Tracker.autorun(function() {
+      var newP = serializePayload($injector.invoke(rp.fn));
+      // Invoke the new subscription and schedule a discard for
+      // the old one
+      Tracker.nonreactive(function() {
+        if ($Subs._currentSubs[newP.hashKey]) {
+          $Subs._ensureKeep(newP.hashKey);
+        } else {
+          $Subs._invokeSub(newP).then(function() {
+            /// TODO: Only under certain conditions! E.g. !$$stateReq, etc.
+            $Subs._discard(rp.p.hashKey);
+            rp.p = newP;
+          });
+        }
+      });
+    });
+    return rp;
+  };
+
+  return $Subs;
+
 }
 
-$subs.$inject = ['$meteor', '$q', '$rootScope', '$timeout', '$log'];
+$subs.$inject = ['$meteor', '$q', '$rootScope', '$timeout', '$log', '$injector'];
