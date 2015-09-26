@@ -265,6 +265,27 @@ function $subs($meteor, $q, $rootScope, $timeout, $log, $injector) {
     return rp;
   };
 
+  // New idea:
+  // - In _migrate, all the reactive payloads are spun up for the first
+  //   time.
+  // - The reactive payloads of stored in a special array.
+  // - We have one main computation that is invalidated on changes to this
+  //   array and listens.
+  // - The computation will also iterate over all the reactive payload
+  //   functions and respond by computing which subscriptions need to
+  //   be started and which to be stopped as a result of the change.
+  // - The migration as a result of the invalidation is run in a nonreactive
+  //   block.
+  // - We need to prevent the comp from starting until after the trans-
+  //   ition. How do we do this? Perhaps we could just replace it on each
+  //   transition.
+  // - I.e. we react to the changes in the specification..
+  // - We also need to conisder how to deal with functions that don't return
+  //   anything. I think this should be allowed.
+  $Subs._reactiveComp = Tracker.autorun(function() {
+
+  });
+
   return $Subs;
 
 }
