@@ -23,7 +23,7 @@ module.exports = function(grunt) {
       options: {
         banner: '/* commonjs package manager support (eg componentjs) */\n' +
                 'if (typeof module !== "undefined" && typeof exports !== "undefined" && module.exports === exports){\n' +
-                '  module.exports = \'ui.router\';\n' +
+                '  module.exports = \'isa.substance\';\n' +
                 '}\n\n' +
                 '\'use strict\';' +
                 '(function (window, angular, undefined) {\n',
