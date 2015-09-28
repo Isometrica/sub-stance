@@ -14,8 +14,8 @@
   ],
   "dependencies": {
     "angular": ">= 1.0.8",
-    "angular-meteor": "1.0.0-rc.6",
-    "angular-ui-router": "~0.2.15"
+    "angular-meteor": ">= 1.0.0-rc.6",
+    "angular-ui-router": ">= 0.2.15"
   },
   "authors": [
     "Stephen Fortune <steve.fortune@icecb.com>"
