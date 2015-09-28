@@ -77,14 +77,20 @@ function $subs($meteor, $q, $rootScope, $timeout, $log) {
         $log.debug('-- Can discard');
         self._discQs[key] = $timeout(function() {
           $log.debug('--- Discarding ' + key);
-          var sub = self._currentSubs[key];
-          if (sub) {
-            sub.stop();
-            delete self._currentSubs[key];
-          }
-          self._purgeDisc(key);
+          self
+            ._stop(key)
+            ._purgeDisc(key);
         }, 10000);
       }
+    },
+
+    _stop: function(key) {
+      var sub = this._currentSubs[key];
+      if (sub) {
+        sub.stop();
+        delete this._currentSubs[key];
+      }
+      return this;
     },
 
     _discarding: function(key) {
@@ -105,6 +111,13 @@ function $subs($meteor, $q, $rootScope, $timeout, $log) {
       }
     },
 
+    _clearAll: function() {
+      var self = this;
+      _.each(self._currentSubs, function(sub, key) {
+        self._stop(key);
+      });
+    },
+
     /**
      * Transition to a new subscription state.
      *
@@ -117,8 +130,8 @@ function $subs($meteor, $q, $rootScope, $timeout, $log) {
       $log.debug('- Transitioning to ', _.map(processed, function(p) { return p.hashKey; }));
       return self._pushOp(function() {
         return self._migrate(processed);
-      }, function(error) {
-        $rootScope.$broadcast('$subTransitionError', error);
+      }, function() {
+        self._clearAll();
       });
     },
 

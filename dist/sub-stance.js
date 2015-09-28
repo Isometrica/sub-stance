@@ -93,7 +93,7 @@ function decorateStateProvider($stateProvider, $provide) {
 
   }
 
-  function transitionToDecorateFn($state, $subs, $log) {
+  function transitionToDecorateFn($state, $subs, $log, $rootScope) {
 
     var transitionTo = $state.transitionTo;
 
@@ -124,13 +124,15 @@ function decorateStateProvider($stateProvider, $provide) {
         .transition(payload)
         .then(function() {
           return transitionTo.apply($state, args);
+        }, function(error) {
+          $rootScope.$broadcast('$subTransitionError', toState, toParams, error);
         });
     };
 
     return $state;
 
   }
-  transitionToDecorateFn.$inject = ['$delegate', '$subs', '$log'];
+  transitionToDecorateFn.$inject = ['$delegate', '$subs', '$log', '$rootScope'];
 
   $provide.decorator('$state', transitionToDecorateFn);
   $stateProvider.decorator('data', dataDecorateFn);
@@ -210,20 +212,26 @@ function $subs($meteor, $q, $rootScope, $timeout, $log) {
     _discQs: {},
 
     _discard: function(key) {
-      $log.info('-- Posting discard for ' + key);
+      $log.debug('-- Posting discard for ' + key);
       var self = this;
       if (!self._discarding(key)) {
-        $log.info('-- Can discard');
+        $log.debug('-- Can discard');
         self._discQs[key] = $timeout(function() {
-          $log.info('--- Discarding ' + key);
-          var sub = self._currentSubs[key];
-          if (sub) {
-            sub.stop();
-            delete self._currentSubs[key];
-          }
-          self._purgeDisc(key);
+          $log.debug('--- Discarding ' + key);
+          self
+            ._stop(key)
+            ._purgeDisc(key);
         }, 10000);
       }
+    },
+
+    _stop: function(key) {
+      var sub = this._currentSubs[key];
+      if (sub) {
+        sub.stop();
+        delete this._currentSubs[key];
+      }
+      return this;
     },
 
     _discarding: function(key) {
@@ -235,13 +243,20 @@ function $subs($meteor, $q, $rootScope, $timeout, $log) {
     },
 
     _ensureKeep: function(key) {
-      $log.info('-- Ensure ' + key + ' is kept.');
+      $log.debug('-- Ensure ' + key + ' is kept.');
       var pr = this._discarding(key);
       if (pr) {
-        $log.info('-- Saved from delete!');
+        $log.debug('-- Saved from delete!');
         $timeout.cancel(pr);
         this._purgeDisc(key);
       }
+    },
+
+    _clearAll: function() {
+      var self = this;
+      _.each(self._currentSubs, function(sub, key) {
+        self._stop(key);
+      });
     },
 
     /**
@@ -253,11 +268,11 @@ function $subs($meteor, $q, $rootScope, $timeout, $log) {
      */
     transition: function(payloads) {
       var self = this, processed = serializeArr(payloads);
-      $log.info('- Transitioning to ', _.map(processed, function(p) { return p.hashKey; }));
+      $log.debug('- Transitioning to ', _.map(processed, function(p) { return p.hashKey; }));
       return self._pushOp(function() {
         return self._migrate(processed);
-      }, function(error) {
-        $rootScope.$broadcast('$subTransitionError', error);
+      }, function() {
+        self._clearAll();
       });
     },
 
@@ -276,9 +291,9 @@ function $subs($meteor, $q, $rootScope, $timeout, $log) {
           }
           this._dead = true;
           --sub.$$retainCount;
-          $log.info('- Stopping descriptor ' + key);
+          $log.debug('- Stopping descriptor ' + key);
           if (!sub.$$stateReq && !sub.$$retainCount) {
-            $log.info('- Actually discarding this sub now');
+            $log.debug('- Actually discarding this sub now');
             self._discard(key);
           }
         }

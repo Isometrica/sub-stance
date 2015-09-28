@@ -203,19 +203,6 @@ describe("$subs", function() {
 
     });
 
-    it("should broadcast error if transition operation fails", function() {
-
-      spyOn($rootScope, '$broadcast');
-      spyOn($meteor, 'subscribe').and.returnValue($q.reject("error"));
-
-      $subs.transition(['sub1']);
-      $rootScope.$digest();
-
-      expect($rootScope.$broadcast.calls.count()).toBe(1);
-      expect($rootScope.$broadcast.calls.argsFor(0)).toEqual(['$subTransitionError', "error"]);
-
-    });
-
     it("should delay discard by an interval", function() {
 
       spyOn($meteor, 'subscribe').and.returnValue($q.when(subHandle));
@@ -227,6 +214,17 @@ describe("$subs", function() {
       expect($subs._currentSubs).not.toEqual({});
 
       $timeout.flush();
+
+      expect($subs._currentSubs).toEqual({});
+
+    });
+
+    it("should reset to genesis state if transition error occurs", function() {
+
+      spyOn($meteor, 'subscribe').and.returnValue($q.reject());
+
+      $subs.transition(['sub1', 'sub2']);
+      $rootScope.$digest();
 
       expect($subs._currentSubs).toEqual({});
 

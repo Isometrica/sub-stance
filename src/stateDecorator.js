@@ -80,7 +80,7 @@ function decorateStateProvider($stateProvider, $provide) {
 
   }
 
-  function transitionToDecorateFn($state, $subs, $log) {
+  function transitionToDecorateFn($state, $subs, $log, $rootScope) {
 
     var transitionTo = $state.transitionTo;
 
@@ -111,13 +111,15 @@ function decorateStateProvider($stateProvider, $provide) {
         .transition(payload)
         .then(function() {
           return transitionTo.apply($state, args);
+        }, function(error) {
+          $rootScope.$broadcast('$subTransitionError', toState, toParams, error);
         });
     };
 
     return $state;
 
   }
-  transitionToDecorateFn.$inject = ['$delegate', '$subs', '$log'];
+  transitionToDecorateFn.$inject = ['$delegate', '$subs', '$log', '$rootScope'];
 
   $provide.decorator('$state', transitionToDecorateFn);
   $stateProvider.decorator('data', dataDecorateFn);

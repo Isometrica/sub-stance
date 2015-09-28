@@ -216,6 +216,8 @@ describe("$stateProvider", function() {
 
     });
 
+    xit("should broadcast error if transition operation fails", function() {});
+
   });
 
 });
