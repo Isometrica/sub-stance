@@ -98,17 +98,19 @@ function decorateStateProvider($stateProvider, $provide) {
     var transitionTo = $state.transitionTo;
 
     function extractParams(subConf, toParams) {
-      var reqParams = flattenConfArgs(subConf);
-      _.each(reqParams, function(paramName) {
-        if (!toParams || _.isUndefined(toParams[paramName])) {
+      var reqParams = flattenConfArgs(subConf),
+          params = angular.extend({}, toParams) || {};
+      _.map(reqParams, function(paramName) {
+        if (_.isUndefined(params[paramName])) {
           var param = $state.params[paramName];
           if (!param) {
             $log.warn('State param ' + paramName + ' doesn\'t exist but $subs requires it.');
           } else {
-            toParams[paramName] = param;
+            params[paramName] = param;
           }
         }
       });
+      return params;
     }
 
     $state.transitionTo = function(to, toParams, options) {
@@ -117,8 +119,8 @@ function decorateStateProvider($stateProvider, $provide) {
           payload;
       if (toState && toState.data) {
         var subs = toState.data.$subs;
-        extractParams(subs, toParams);
-        payload = evaluatedConf(subs, toParams);
+        var params = extractParams(subs, toParams);
+        payload = evaluatedConf(subs, params);
       }
       return $subs
         .transition(payload)
