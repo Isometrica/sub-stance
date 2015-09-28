@@ -87,7 +87,7 @@ function decorateStateProvider($stateProvider, $provide) {
     function extractParams(subConf, toParams) {
       var reqParams = flattenConfArgs(subConf);
       _.each(reqParams, function(paramName) {
-        if (_.isUndefined(toParams[paramName])) {
+        if (!toParams || _.isUndefined(toParams[paramName])) {
           var param = $state.params[paramName];
           if (!param) {
             $log.warn('State param ' + paramName + ' doesn\'t exist but $subs requires it.');
