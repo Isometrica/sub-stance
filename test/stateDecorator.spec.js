@@ -216,6 +216,7 @@ describe("$stateProvider", function() {
 
     });
 
+    xit("should broadcast at start of sub transition", function() {});
     xit("should broadcast error if transition operation fails", function() {});
 
   });

@@ -122,6 +122,7 @@ function decorateStateProvider($stateProvider, $provide) {
         var params = extractParams(subs, toParams);
         payload = evaluatedConf(subs, params);
       }
+      $rootScope.$broadcast('$subTransitionStart', toState, toParams);
       return $subs
         .transition(payload)
         .then(function() {
