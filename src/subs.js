@@ -12,7 +12,7 @@ angular
  * @copyright Isometrica
  * @author Stephen Fortune
  */
-function $subs($meteor, $q, $rootScope, $timeout, $log) {
+function $subs($meteor, $q, $rootScope, $log) {
 
   function dedupePayloads(payloads) {
     return _.uniq(payloads, function(payload) {
@@ -68,23 +68,7 @@ function $subs($meteor, $q, $rootScope, $timeout, $log) {
       return this._opsQ;
     },
 
-    _discQs: {},
-
     _discard: function(key) {
-      $log.debug('-- Posting discard for ' + key);
-      var self = this;
-      if (!self._discarding(key)) {
-        $log.debug('-- Can discard');
-        self._discQs[key] = $timeout(function() {
-          $log.debug('--- Discarding ' + key);
-          self
-            ._stop(key)
-            ._purgeDisc(key);
-        }, 10000);
-      }
-    },
-
-    _stop: function(key) {
       var sub = this._currentSubs[key];
       if (sub) {
         sub.stop();
@@ -93,28 +77,10 @@ function $subs($meteor, $q, $rootScope, $timeout, $log) {
       return this;
     },
 
-    _discarding: function(key) {
-      return this._discQs[key];
-    },
-
-    _purgeDisc: function(key) {
-      delete this._discQs[key];
-    },
-
-    _ensureKeep: function(key) {
-      $log.debug('-- Ensure ' + key + ' is kept.');
-      var pr = this._discarding(key);
-      if (pr) {
-        $log.debug('-- Saved from delete!');
-        $timeout.cancel(pr);
-        this._purgeDisc(key);
-      }
-    },
-
     _clearAll: function() {
       var self = this;
       _.each(self._currentSubs, function(sub, key) {
-        self._stop(key);
+        self._discard(key);
       });
     },
 
@@ -166,7 +132,6 @@ function $subs($meteor, $q, $rootScope, $timeout, $log) {
       return self._pushOp(function() {
         var sub = self._currentSubs[payload.hashKey];
         if (sub) {
-          self._ensureKeep(payload.hashKey);
           var descriptor = self._createDescriptor(payload.hashKey, sub);
           return $q.resolve(descriptor);
         }
@@ -218,21 +183,18 @@ function $subs($meteor, $q, $rootScope, $timeout, $log) {
         return !self._currentSubs[payload.hashKey];
       });
       /// Teardown subs that are no longer required by the application
-      /// @note Is there a problem with atomicity here? E.g. if the timeout
-      /// completes after _.some but before self._ensureKeep? Perhaps we
-      /// could use some sort of mutex.
-      /// @note If the $timeout for discard ops is 0, we'd actually be
-      /// mutating `_currentSubs` while we enumerate it, which is bad.
-      /// Just bear in mind.
+      var discardKeys = [];
       _.each(self._currentSubs, function(handle, key) {
         var compKeys = function(p) { return p.hashKey === key; },
             isNext = _.some(nextPayloads, compKeys);
-        if (isNext) {
-          self._ensureKeep(key);
-        } else if (!handle.$$retainCount) {
-          self._discard(key);
+        if (isNext || handle.$$retainCount) {
+          handle.$$stateReq = true;
+        } else {
+          discardKeys.push(key);
         }
-        handle.$$stateReq = isNext;
+      });
+      _.each(discardKeys, function(key) {
+        self._discard(key);
       });
       /// Invoke new subs that are required, ensuring that they are marked
       /// as being required throughout the entire state (i.e. won't be discarded
@@ -249,4 +211,4 @@ function $subs($meteor, $q, $rootScope, $timeout, $log) {
 
 }
 
-$subs.$inject = ['$meteor', '$q', '$rootScope', '$timeout', '$log'];
+$subs.$inject = ['$meteor', '$q', '$rootScope', '$log'];
